@@ -1,0 +1,48 @@
+replicaCount: 1
+
+image:
+  repository: samma-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: samma.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env: {}
+  # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ""
+  # CLERK_SECRET_KEY: ""
+
+envFrom: []
+  # - secretRef:
+  #     name: samma-clerk-secrets
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

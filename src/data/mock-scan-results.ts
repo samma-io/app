@@ -1,0 +1,133 @@
+export interface ScanResult {
+  id: string;
+  scannerId: string;
+  scannerType: string;
+  target: string;
+  timestamp: string;
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  finding: string;
+  details: string;
+}
+
+export const mockScanResults: ScanResult[] = [
+  {
+    id: "res-001",
+    scannerId: "scan-001",
+    scannerType: "nmap",
+    target: "10.0.1.15",
+    timestamp: "2025-02-10T14:32:00Z",
+    severity: "high",
+    finding: "Open port 22 (SSH) with outdated OpenSSH 7.4",
+    details: "Port 22/tcp open ssh OpenSSH 7.4 - known CVE-2023-38408",
+  },
+  {
+    id: "res-002",
+    scannerId: "scan-001",
+    scannerType: "nmap",
+    target: "10.0.1.22",
+    timestamp: "2025-02-10T14:33:00Z",
+    severity: "critical",
+    finding: "Open port 3306 (MySQL) exposed to network",
+    details: "Port 3306/tcp open mysql MySQL 5.7.42 - publicly accessible",
+  },
+  {
+    id: "res-003",
+    scannerId: "scan-002",
+    scannerType: "nikto",
+    target: "app.samma.io",
+    timestamp: "2025-02-10T16:05:00Z",
+    severity: "medium",
+    finding: "X-Frame-Options header missing",
+    details: "OSVDB-0 - The X-Frame-Options header is not set. Clickjacking possible.",
+  },
+  {
+    id: "res-004",
+    scannerId: "scan-002",
+    scannerType: "nikto",
+    target: "app.samma.io",
+    timestamp: "2025-02-10T16:05:30Z",
+    severity: "high",
+    finding: "Server leaks version info via Server header",
+    details: "OSVDB-3092 - Server: nginx/1.18.0 - Version disclosed in header",
+  },
+  {
+    id: "res-005",
+    scannerId: "scan-003",
+    scannerType: "tsunami",
+    target: "10.0.2.8",
+    timestamp: "2025-02-09T08:15:00Z",
+    severity: "critical",
+    finding: "Exposed Kubernetes API server without authentication",
+    details: "Port 6443/tcp - K8s API server allows anonymous access",
+  },
+  {
+    id: "res-006",
+    scannerId: "scan-004",
+    scannerType: "dnsrecon",
+    target: "samma.io",
+    timestamp: "2025-02-10T12:02:00Z",
+    severity: "info",
+    finding: "DNS zone transfer attempted - AXFR denied",
+    details: "AXFR query to ns1.samma.io - Transfer refused (GOOD)",
+  },
+  {
+    id: "res-007",
+    scannerId: "scan-004",
+    scannerType: "dnsrecon",
+    target: "samma.io",
+    timestamp: "2025-02-10T12:02:30Z",
+    severity: "low",
+    finding: "SPF record found but no DMARC policy",
+    details: "TXT record has SPF but DMARC record missing at _dmarc.samma.io",
+  },
+  {
+    id: "res-008",
+    scannerId: "scan-001",
+    scannerType: "nmap",
+    target: "10.0.1.30",
+    timestamp: "2025-02-10T14:35:00Z",
+    severity: "medium",
+    finding: "Open port 8080 (HTTP Proxy) detected",
+    details: "Port 8080/tcp open http-proxy - potential unauthorized proxy service",
+  },
+  {
+    id: "res-009",
+    scannerId: "scan-002",
+    scannerType: "nikto",
+    target: "app.samma.io",
+    timestamp: "2025-02-10T16:06:00Z",
+    severity: "low",
+    finding: "Strict-Transport-Security header not set",
+    details: "HSTS header missing - browser may not enforce HTTPS",
+  },
+  {
+    id: "res-010",
+    scannerId: "scan-001",
+    scannerType: "nmap",
+    target: "10.0.1.5",
+    timestamp: "2025-02-10T14:31:00Z",
+    severity: "info",
+    finding: "Standard ports 80, 443 open on load balancer",
+    details: "Ports 80/tcp, 443/tcp open - expected for LB ingress",
+  },
+  {
+    id: "res-011",
+    scannerId: "scan-003",
+    scannerType: "tsunami",
+    target: "10.0.2.12",
+    timestamp: "2025-02-09T08:20:00Z",
+    severity: "high",
+    finding: "etcd exposed without TLS on port 2379",
+    details: "Port 2379/tcp - etcd accessible without client certificate",
+  },
+  {
+    id: "res-012",
+    scannerId: "scan-001",
+    scannerType: "nmap",
+    target: "10.0.1.45",
+    timestamp: "2025-02-10T14:36:00Z",
+    severity: "medium",
+    finding: "Redis exposed on port 6379 without AUTH",
+    details: "Port 6379/tcp open redis - no authentication configured",
+  },
+];
