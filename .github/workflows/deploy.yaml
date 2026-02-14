@@ -41,7 +41,7 @@ jobs:
               exit 1
             fi
             mkdir -p ${{ env.TARGET_DIR }}
-            helm template chart/ --set image.tag=${{ github.sha }} > ${{ env.TARGET_DIR }}/${{ env.TARGET_FILE }}
+            helm template samma chart/ --set image.tag=${{ github.sha }} > ${{ env.TARGET_DIR }}/${{ env.TARGET_FILE }}
             cat ${{ env.TARGET_DIR }}/${{ env.TARGET_FILE }}
 
       - name: GIT commit and push all changed files
