@@ -11,15 +11,28 @@ service:
   targetPort: 3000
 
 ingress:
-  enabled: false
+  enabled: true
   className: ""
-  annotations: {}
+  annotations:
+    cert-manager.io/cluster-issuer: http
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,web
   hosts:
-    - host: samma.local
+    - host: www.samma.io
       paths:
         - path: /
           pathType: Prefix
-  tls: []
+    - host: samma.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: samma-io-tls
+      hosts:
+        - www.samma.io
+        - samma.io
 
 resources:
   requests:
