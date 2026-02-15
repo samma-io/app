@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: samma-app
+  repository: ghcr.io/samma-io/app
   tag: latest
   pullPolicy: IfNotPresent
 
