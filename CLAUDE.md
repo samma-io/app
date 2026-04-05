@@ -4,17 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Development Commands
 
-- `npm run dev` — Start dev server (port 3000, hot reload)
+**Always use Docker Compose for running and testing the app.** The app requires PostgreSQL, which is provided by the `postgres` service in `docker-compose.yml`.
+
+```bash
+# Start all services (app + postgres) and rebuild if needed
+docker compose up --build
+
+# Run in background
+docker compose up --build -d
+
+# View logs
+docker compose logs -f samma-web
+
+# Run Prisma migrations inside the running container
+docker compose exec samma-web npx prisma migrate deploy
+
+# Stop everything
+docker compose down
+```
+
 - `npm run build` — Production build (standalone output for Docker)
-- `npm run start` — Start production server
 - `npm run lint` — ESLint checks
+
+> Do NOT use `npm run dev` or `npm run start` directly — the app needs the `postgres` service from docker-compose, and `DATABASE_URL` in `.env.local` points to the `postgres` hostname (not `localhost`).
 
 ## Tech Stack
 
 - **Next.js 16** with App Router (file-based routing)
 - **React 19** with TypeScript (strict mode)
 - **Tailwind CSS 4** via PostCSS plugin
-- **Clerk** for authentication (optional — app degrades gracefully if env vars missing)
+- **NextAuth v4** for authentication (email magic links via SMTP, PrismaAdapter)
 - **Recharts** for data visualization
 - **class-variance-authority (CVA)** for component variants
 - **lucide-react** for icons
@@ -29,12 +48,20 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/scanners` — Scanner management dashboard (shows scanner status, scan results)
 - `/siem` — SIEM dashboard (rules, alerts, log sources, charts)
 - `/about` — Product capabilities page
-- `/profile` — User profile (protected by Clerk middleware)
-- `/sign-in`, `/sign-up` — Clerk auth pages using catch-all `[[...slug]]` routes
+- `/profile` — User profile (protected by middleware)
+- `/sign-in` — Magic link email form (NextAuth)
+- `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
 
-### Auth (Clerk) — Conditional Loading
+### Auth (NextAuth — Magic Links)
 
-Auth is entirely optional. The middleware (`src/middleware.ts`) checks for `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` at runtime and only activates Clerk if configured. The root layout conditionally wraps with `<ClerkProvider>`. The navbar dynamically imports Clerk components and falls back to unauthenticated UI. This allows full development without Clerk credentials.
+NextAuth v4 with the PrismaAdapter handles authentication. Users sign in via email magic links (SMTP required). First sign-in auto-creates the user record.
+
+- `src/lib/auth.ts` — NextAuth config (EmailProvider, session callback adds `user.id`)
+- `src/app/api/auth/[...nextauth]/route.ts` — NextAuth App Router handler
+- `src/lib/org.ts` — `getActiveOrg()` reads `active-org-id` cookie; `getUserOrgs()` lists memberships
+- `src/middleware.ts` — `withAuth` protects `/dashboard` and `/profile` routes
+- Sign-in flow: `/sign-in` → magic link email → session → `/dashboard`
+- First sign-in: no orgs → redirect `/dashboard/org/new` → create org → dashboard
 
 ### Component Organization
 

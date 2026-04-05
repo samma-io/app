@@ -28,6 +28,16 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.migration.enabled }}
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "node_modules/.bin/prisma", "migrate", "deploy"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secrets.name }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -43,10 +53,9 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
           {{- end }}
-          {{- with .Values.envFrom }}
           envFrom:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            - secretRef:
+                name: {{ .Values.secrets.name }}
           livenessProbe:
             httpGet:
               path: /

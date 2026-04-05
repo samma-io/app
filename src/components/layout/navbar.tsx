@@ -4,38 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
-let ClerkComponents: {
-  SignedIn: React.ComponentType<{ children: React.ReactNode }>;
-  SignedOut: React.ComponentType<{ children: React.ReactNode }>;
-  UserButton: React.ComponentType<{ afterSignOutUrl?: string }>;
-} | null = null;
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const clerk = require("@clerk/nextjs");
-  ClerkComponents = {
-    SignedIn: clerk.SignedIn,
-    SignedOut: clerk.SignedOut,
-    UserButton: clerk.UserButton,
-  };
-} catch {
-  // Clerk not available
-}
-
-const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const hasClerk =
-  ClerkComponents &&
-  clerkKey &&
-  clerkKey.startsWith("pk_") &&
-  !clerkKey.includes("REPLACE");
-
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <nav className="sticky top-0 z-50 bg-samma-navy shadow-lg">
@@ -67,54 +44,36 @@ export default function Navbar() {
 
           {/* Auth */}
           <div className="hidden md:flex items-center gap-3">
-            {hasClerk && ClerkComponents ? (
+            {session ? (
               <>
-                <ClerkComponents.SignedOut>
-                  <Link href="/sign-in">
-                    <Button
-                      variant="ghost"
-                      className="text-gray-200 hover:text-white"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/sign-up">
-                    <Button variant="primary" size="sm">
-                      Get Started
-                    </Button>
-                  </Link>
-                </ClerkComponents.SignedOut>
-                <ClerkComponents.SignedIn>
-                  <Link
-                    href="/profile"
-                    className={cn(
-                      "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                      pathname === "/profile"
-                        ? "bg-samma-navy-dark text-samma-gold"
-                        : "text-gray-200 hover:text-white hover:bg-samma-navy-dark"
-                    )}
-                  >
-                    Profile
-                  </Link>
-                  <ClerkComponents.UserButton afterSignOutUrl="/" />
-                </ClerkComponents.SignedIn>
+                <Link
+                  href="/dashboard"
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                    pathname.startsWith("/dashboard")
+                      ? "bg-samma-navy-dark text-samma-gold"
+                      : "text-gray-200 hover:text-white hover:bg-samma-navy-dark"
+                  )}
+                >
+                  Dashboard
+                </Link>
+                <Button
+                  variant="ghost"
+                  className="text-gray-200 hover:text-white"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                  Sign Out
+                </Button>
               </>
             ) : (
-              <>
-                <Link href="/sign-in">
-                  <Button
-                    variant="ghost"
-                    className="text-gray-200 hover:text-white"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/sign-up">
-                  <Button variant="primary" size="sm">
-                    Get Started
-                  </Button>
-                </Link>
-              </>
+              <Link href="/sign-in">
+                <Button
+                  variant="ghost"
+                  className="text-gray-200 hover:text-white"
+                >
+                  Sign In
+                </Button>
+              </Link>
             )}
           </div>
 
@@ -152,13 +111,31 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="pt-3 border-t border-samma-navy-light">
-              <Link
-                href="/sign-in"
-                onClick={() => setMobileOpen(false)}
-                className="block px-4 py-2 text-sm text-gray-200 hover:text-white"
-              >
-                Sign In
-              </Link>
+              {session ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-4 py-2 text-sm text-gray-200 hover:text-white"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="block px-4 py-2 text-sm text-gray-200 hover:text-white"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-2 text-sm text-gray-200 hover:text-white"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>

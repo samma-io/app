@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -12,39 +12,19 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-interface ClerkUser {
-  fullName: string | null;
-  imageUrl: string | null;
-  primaryEmailAddress: { emailAddress: string } | null;
-  createdAt: Date | null;
-}
-
 export default function ProfilePage() {
-  const [user, setUser] = useState<ClerkUser | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    import("@clerk/nextjs")
-      .then((mod) => {
-        // Access the useUser hook result through clerk's client-side helpers
-        const clerkUser = (mod as Record<string, unknown>).useUser;
-        if (typeof clerkUser === "function") {
-          // This won't work as a hook outside component - use auth() instead
-        }
-        setIsLoaded(true);
-      })
-      .catch(() => {
-        setIsLoaded(true);
-      });
-  }, []);
-
-  if (!isLoaded) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-samma-navy border-t-transparent rounded-full" />
       </div>
     );
   }
+
+  const email = session?.user?.email;
+  const name = session?.user?.name;
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -71,7 +51,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">
-                  {user?.fullName || "Samma User"}
+                  {name || "Samma User"}
                 </h3>
                 <p className="text-gray-500">Samma.io Member</p>
               </div>
@@ -79,21 +59,11 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-gray-600">
                 <Mail className="h-5 w-5 text-gray-400" />
-                <span>
-                  {user?.primaryEmailAddress?.emailAddress ||
-                    "Configure Clerk to see email"}
-                </span>
+                <span>{email || "No email on file"}</span>
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <Calendar className="h-5 w-5 text-gray-400" />
-                <span>
-                  {user?.createdAt
-                    ? `Joined ${new Date(user.createdAt).toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" }
-                      )}`
-                    : "Joined 2025"}
-                </span>
+                <span>Samma.io Member</span>
               </div>
             </div>
           </CardContent>

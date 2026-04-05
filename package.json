@@ -9,11 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.37.3",
+    "@auth/prisma-adapter": "^2.7.4",
+    "@prisma/client": "^5.22.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
+    "next-auth": "^4.24.11",
+    "nodemailer": "^7.0.7",
+    "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
@@ -22,6 +26,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17 || ^7.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

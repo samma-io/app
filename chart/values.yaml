@@ -42,13 +42,54 @@ resources:
     cpu: 500m
     memory: 256Mi
 
+# Non-sensitive environment variables injected directly into the container.
 env: {}
-  # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ""
-  # CLERK_SECRET_KEY: ""
+  # SOME_PLAIN_VAR: "value"
 
-envFrom: []
-  # - secretRef:
-  #     name: samma-clerk-secrets
+# ─── Secrets ──────────────────────────────────────────────────────────────────
+# Sensitive configuration (NextAuth, SMTP, DATABASE_URL) is loaded from a
+# Kubernetes Secret via envFrom.
+#
+# Two modes:
+#   secrets.create: false  (default) — expects the Secret to exist in the cluster
+#                                       already (created via kubectl / external-secrets).
+#   secrets.create: true             — the chart creates the Secret from secrets.data.
+#                                       Only use this for dev/testing; avoid storing
+#                                       plain-text credentials in Git.
+secrets:
+  # Whether to create the Kubernetes Secret from values below.
+  create: false
+
+  # Name of the Secret to mount. Referenced by the app container and the
+  # migration init container.
+  name: samma-app-secrets
+
+  # Values used only when secrets.create: true.
+  # To create the secret manually instead:
+  #   kubectl create secret generic samma-app-secrets \
+  #     --from-literal=DATABASE_URL="postgresql://..." \
+  #     --from-literal=NEXTAUTH_URL="https://samma.io" \
+  #     --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
+  #     --from-literal=EMAIL_SERVER_HOST="smtp.example.com" \
+  #     --from-literal=EMAIL_SERVER_PORT="587" \
+  #     --from-literal=EMAIL_SERVER_USER="noreply@samma.io" \
+  #     --from-literal=EMAIL_SERVER_PASSWORD="<password>" \
+  #     --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>"
+  data:
+    DATABASE_URL: ""
+    NEXTAUTH_URL: "https://samma.io"
+    NEXTAUTH_SECRET: ""
+    EMAIL_SERVER_HOST: ""
+    EMAIL_SERVER_PORT: "587"
+    EMAIL_SERVER_USER: ""
+    EMAIL_SERVER_PASSWORD: ""
+    EMAIL_FROM: "Samma.io <noreply@samma.io>"
+
+# ─── Database Migrations ──────────────────────────────────────────────────────
+# An init container runs `prisma migrate deploy` before the app container starts,
+# ensuring the database schema is always up to date on every rollout.
+migration:
+  enabled: true
 
 autoscaling:
   enabled: false

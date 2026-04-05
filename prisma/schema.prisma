@@ -1,0 +1,156 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── NextAuth models ──────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  pendingOrgName String?
+
+  accounts    Account[]
+  sessions    Session[]
+  memberships OrgMembership[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Organisation ─────────────────────────────────────────────────────────────
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   OrgMembership[]
+  profiles  Profile[]
+  apiTokens ApiToken[]
+}
+
+enum OrgRole {
+  OWNER
+  MEMBER
+}
+
+model OrgMembership {
+  id             String   @id @default(cuid())
+  userId         String
+  organisationId String
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+}
+
+// ─── Scan Profiles ────────────────────────────────────────────────────────────
+
+enum ProfileType {
+  FULL
+  SMALL
+}
+
+// A scanning profile belongs to an Organisation.
+// FULL = deep scan all ports, SMALL = quick scan common ports.
+model Profile {
+  id             String      @id @default(cuid())
+  organisationId String
+  name           String
+  type           ProfileType @default(SMALL)
+  isDefault      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  targets      Target[]
+
+  @@index([organisationId])
+}
+
+// ─── Targets ─────────────────────────────────────────────────────────────────
+
+// A target is an IP or DNS entry attached to a profile.
+model Target {
+  id        String     @id @default(cuid())
+  profileId String
+  value     String     // e.g. "192.168.1.1" or "example.com"
+  type      TargetType
+  label     String?    // optional human-readable name
+  port      Int?       // optional port override
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+enum TargetType {
+  ip
+  dns
+}
+
+// ─── API Tokens ───────────────────────────────────────────────────────────────
+
+// An API token for machine-to-machine access (e.g. scanner posting results).
+// The raw token is shown once; only the SHA-256 hash is stored.
+model ApiToken {
+  id             String    @id @default(cuid())
+  organisationId String
+  name           String    // human-readable label, e.g. "CI pipeline"
+  tokenHash      String    @unique // SHA-256(rawToken), hex-encoded
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([tokenHash])
+}
