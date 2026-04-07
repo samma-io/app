@@ -79,14 +79,25 @@ export default async function ProfileDetailPage({ params }: Props) {
                   <th className="px-6 py-3 text-left font-medium text-gray-500">
                     Added
                   </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">
+                    Scanner
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">
+                    Status
+                  </th>
                   <th className="px-6 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {profile.targets.map((target) => (
                   <tr key={target.id} className="hover:bg-gray-50 group">
-                    <td className="px-6 py-3 font-mono text-gray-900">
-                      {target.value}
+                    <td className="px-6 py-3">
+                      <Link
+                        href={`/dashboard/profiles/${profile.id}/targets/${target.id}`}
+                        className="font-mono text-gray-900 hover:text-samma-navy hover:underline"
+                      >
+                        {target.value}
+                      </Link>
                     </td>
                     <td className="px-6 py-3">
                       <Badge
@@ -107,6 +118,30 @@ export default async function ProfileDetailPage({ params }: Props) {
                     </td>
                     <td className="px-6 py-3 text-gray-400">
                       {formatDate(target.createdAt.toISOString())}
+                    </td>
+                    <td className="px-6 py-3">
+                      <Badge
+                        className={
+                          target.scannerStatus === "DEPLOYED"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-600"
+                        }
+                      >
+                        {target.scannerStatus === "DEPLOYED" ? "Deployed" : "Ready to deploy"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-3">
+                      <Badge
+                        className={
+                          target.reachabilityStatus === "UP"
+                            ? "bg-green-100 text-green-800"
+                            : target.reachabilityStatus === "DOWN"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-600"
+                        }
+                      >
+                        {target.reachabilityStatus}
+                      </Badge>
                     </td>
                     <td className="px-6 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                       <DeleteTargetButton

@@ -116,25 +116,38 @@ model Profile {
 
 // ─── Targets ─────────────────────────────────────────────────────────────────
 
+enum TargetType {
+  ip
+  dns
+}
+
+enum ScannerStatus {
+  READY_TO_DEPLOY
+  DEPLOYED
+}
+
+enum ReachabilityStatus {
+  UP
+  DOWN
+  UNKNOWN
+}
+
 // A target is an IP or DNS entry attached to a profile.
 model Target {
-  id        String     @id @default(cuid())
-  profileId String
-  value     String     // e.g. "192.168.1.1" or "example.com"
-  type      TargetType
-  label     String?    // optional human-readable name
-  port      Int?       // optional port override
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                 String             @id @default(cuid())
+  profileId          String
+  value              String             // e.g. "192.168.1.1" or "example.com"
+  type               TargetType
+  label              String?            // optional human-readable name
+  port               Int?               // optional port override
+  scannerStatus      ScannerStatus      @default(READY_TO_DEPLOY)
+  reachabilityStatus ReachabilityStatus @default(UP)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
-}
-
-enum TargetType {
-  ip
-  dns
 }
 
 // ─── API Tokens ───────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
+import { registerTargetWithOperator } from "@/lib/operator";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -84,7 +85,17 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(target, { status: 201 });
+  const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
+    .catch((err) => { console.error("[operator] registration failed:", err); return false; });
+
+  if (deployed) {
+    await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } });
+  }
+
+  return NextResponse.json(
+    { ...target, scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
+    { status: 201 }
+  );
 }
 
 export async function PUT(req: NextRequest) {
@@ -167,5 +178,15 @@ export async function PUT(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(target, { status: 200 });
+  const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
+    .catch((err) => { console.error("[operator] registration failed:", err); return false; });
+
+  if (deployed) {
+    await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } });
+  }
+
+  return NextResponse.json(
+    { ...target, scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
+    { status: 200 }
+  );
 }

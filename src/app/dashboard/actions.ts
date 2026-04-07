@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getActiveOrg, getUserOrgs, ACTIVE_ORG_COOKIE } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
+import { registerTargetWithOperator } from "@/lib/operator";
 import type { ProfileType } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
@@ -60,9 +61,16 @@ export async function addTarget(
     data: { profileId, value, type, label: label ?? null, port: port ?? null },
   });
 
+  const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
+    .catch((err) => { console.error("[operator] registration failed:", err); return false; });
+
+  const updated = deployed
+    ? await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } })
+    : target;
+
   revalidatePath(`/dashboard/profiles/${profileId}`);
   revalidatePath("/dashboard");
-  return target;
+  return updated;
 }
 
 export async function deleteTarget(targetId: string, profileId: string) {
