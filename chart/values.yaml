@@ -43,8 +43,10 @@ resources:
     memory: 256Mi
 
 # Non-sensitive environment variables injected directly into the container.
-env: {}
-  # SOME_PLAIN_VAR: "value"
+env:
+  # URL of the Kubernetes operator Flask API (cluster-internal service URL).
+  # Example: http://samma-io-operator.samma-io.svc.cluster.local:5000
+  OPERATOR_API_URL: ""
 
 # ─── Secrets ──────────────────────────────────────────────────────────────────
 # Sensitive configuration (NextAuth, SMTP, DATABASE_URL) is loaded from a
@@ -67,7 +69,8 @@ secrets:
   # Values used only when secrets.create: true.
   # To create the secret manually instead:
   #   kubectl create secret generic samma-app-secrets \
-  #     --from-literal=DATABASE_URL="postgresql://..." \
+  #     --from-literal=DATABASE_URL="postgresql://user:pass@host:5432/samma" \
+  #     --from-literal=SCANNER_DATABASE_URL="postgresql://user:pass@host:5432/samma" \
   #     --from-literal=NEXTAUTH_URL="https://samma.io" \
   #     --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
   #     --from-literal=EMAIL_SERVER_HOST="smtp.example.com" \
@@ -77,6 +80,8 @@ secrets:
   #     --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>"
   data:
     DATABASE_URL: ""
+    # TimescaleDB for scanner results (scan_results table, joined via samma_id)
+    SCANNER_DATABASE_URL: ""
     NEXTAUTH_URL: "https://samma.io"
     NEXTAUTH_SECRET: ""
     EMAIL_SERVER_HOST: ""
