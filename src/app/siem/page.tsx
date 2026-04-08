@@ -3,7 +3,6 @@ import {
   FileText,
   Radio,
   ShieldCheck,
-  Bell,
   ArrowRight,
   Github,
   Zap,

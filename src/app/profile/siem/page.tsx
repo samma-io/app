@@ -12,7 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockSiemRules } from "@/data/mock-siem-rules";
 import { mockAlerts } from "@/data/mock-alerts";
@@ -90,7 +90,7 @@ export default function ProfileSiemPage() {
         </div>
 
         {/* Charts */}
-        <SiemCharts alerts={mockAlerts} rules={mockSiemRules} />
+        <SiemCharts rules={mockSiemRules} />
 
         {/* SIEM Rules */}
         <div>
