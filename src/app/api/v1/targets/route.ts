@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
-import { registerTargetWithOperator } from "@/lib/operator";
+import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -189,4 +189,69 @@ export async function PUT(req: NextRequest) {
     { ...target, scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
     { status: 200 }
   );
+}
+
+export async function DELETE(req: NextRequest) {
+  // 1. Extract bearer token
+  const authHeader = req.headers.get("authorization") ?? "";
+  const raw = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
+
+  if (!raw) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 2. Hash and look up in DB
+  const tokenHash = hashToken(raw);
+  const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
+
+  if (!apiToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 3. Update lastUsedAt (fire-and-forget)
+  prisma.apiToken
+    .update({ where: { id: apiToken.id }, data: { lastUsedAt: new Date() } })
+    .catch(() => {});
+
+  // 4. Parse body
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { value, id } = body as Record<string, unknown>;
+
+  if (!value && !id) {
+    return NextResponse.json(
+      { error: "Provide 'value' (target string) or 'id' (target ID)" },
+      { status: 400 }
+    );
+  }
+
+  // 5. Find target scoped to this org
+  const target = await prisma.target.findFirst({
+    where: {
+      profile: { organisationId: apiToken.organisationId },
+      ...(id && typeof id === "string" ? { id } : {}),
+      ...(value && typeof value === "string" ? { value } : {}),
+    },
+  });
+
+  if (!target) {
+    return NextResponse.json({ error: "Target not found" }, { status: 404 });
+  }
+
+  // 6. Remove from operator (fire-and-forget)
+  removeTargetFromOperator(target.value).catch(
+    (err) => console.error("[operator] remove on API delete failed:", err)
+  );
+
+  // 7. Delete from DB
+  await prisma.target.delete({ where: { id: target.id } });
+
+  return NextResponse.json({ deleted: target.id }, { status: 200 });
 }

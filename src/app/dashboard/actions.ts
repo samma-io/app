@@ -7,7 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getActiveOrg, getUserOrgs, ACTIVE_ORG_COOKIE } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
-import { registerTargetWithOperator } from "@/lib/operator";
+import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import type { ProfileType } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
@@ -82,7 +82,56 @@ export async function deleteTarget(targetId: string, profileId: string) {
   });
   if (!target) throw new Error("Target not found");
 
+  removeTargetFromOperator(target.value).catch(
+    (err) => console.error("[operator] remove on delete failed:", err)
+  );
+
   await prisma.target.delete({ where: { id: targetId } });
+
+  revalidatePath(`/dashboard/profiles/${profileId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function deployTarget(targetId: string, profileId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const target = await prisma.target.findFirst({
+    where: { id: targetId, profile: { id: profileId, organisationId: org.id } },
+    include: { profile: true },
+  });
+  if (!target) throw new Error("Target not found");
+
+  const deployed = await registerTargetWithOperator(
+    target.value, target.id, target.profile.type, target.profile.id
+  ).catch((err) => { console.error("[operator] deploy failed:", err); return false; });
+
+  await prisma.target.update({
+    where: { id: targetId },
+    data: { scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
+  });
+
+  revalidatePath(`/dashboard/profiles/${profileId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function undeployTarget(targetId: string, profileId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const target = await prisma.target.findFirst({
+    where: { id: targetId, profile: { organisationId: org.id } },
+  });
+  if (!target) throw new Error("Target not found");
+
+  await removeTargetFromOperator(target.value).catch(
+    (err) => console.error("[operator] undeploy failed:", err)
+  );
+
+  await prisma.target.update({
+    where: { id: targetId },
+    data: { scannerStatus: "READY_TO_DEPLOY" },
+  });
 
   revalidatePath(`/dashboard/profiles/${profileId}`);
   revalidatePath("/dashboard");

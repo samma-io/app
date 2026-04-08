@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddTargetForm } from "@/components/dashboard/add-target-form";
 import { DeleteTargetButton } from "@/components/dashboard/delete-target-button";
+import { TargetScannerButtons } from "@/components/dashboard/target-scanner-buttons";
 import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
@@ -144,10 +145,17 @@ export default async function ProfileDetailPage({ params }: Props) {
                       </Badge>
                     </td>
                     <td className="px-6 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                      <DeleteTargetButton
-                        targetId={target.id}
-                        profileId={profile.id}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <TargetScannerButtons
+                          targetId={target.id}
+                          profileId={profile.id}
+                          scannerStatus={target.scannerStatus}
+                        />
+                        <DeleteTargetButton
+                          targetId={target.id}
+                          profileId={profile.id}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
