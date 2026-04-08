@@ -28,8 +28,19 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.migration.enabled }}
       initContainers:
+        {{- if .Values.postgres.enabled }}
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image }}
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "samma-app.fullname" . }}-postgres -p 5432 -U {{ .Values.postgres.user }}; do
+                echo "waiting for postgres..."; sleep 2;
+              done
+        {{- end }}
+        {{- if .Values.migration.enabled }}
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -37,7 +48,7 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ .Values.secrets.name }}
-      {{- end }}
+        {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -46,13 +57,6 @@ spec:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
-          {{- with .Values.env }}
-          env:
-            {{- range $key, $value := . }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
-          {{- end }}
           envFrom:
             - secretRef:
                 name: {{ .Values.secrets.name }}

@@ -42,45 +42,50 @@ resources:
     cpu: 500m
     memory: 256Mi
 
-# Non-sensitive environment variables injected directly into the container.
-env:
-  # URL of the Kubernetes operator Flask API (cluster-internal service URL).
-  # Example: http://samma-io-operator.samma-io.svc.cluster.local:5000
-  OPERATOR_API_URL: ""
+# ─── PostgreSQL ───────────────────────────────────────────────────────────────
+# When enabled, a PostgreSQL StatefulSet + Service is deployed alongside the app.
+# DATABASE_URL is built automatically from these values and injected into the
+# Secret — do not set secrets.data.DATABASE_URL when postgres.enabled is true.
+postgres:
+  enabled: true
+  image: postgres:16-alpine
+  user: samma
+  # Set a strong password in production. Required when postgres.enabled is true.
+  password: ""
+  database: samma
+  # PVC size for the postgres data volume.
+  storage: 5Gi
+  # Leave empty to use the cluster default StorageClass.
+  storageClass: ""
 
 # ─── Secrets ──────────────────────────────────────────────────────────────────
-# Sensitive configuration (NextAuth, SMTP, DATABASE_URL) is loaded from a
-# Kubernetes Secret via envFrom.
+# All app configuration is loaded from a single Kubernetes Secret via envFrom.
 #
 # Two modes:
-#   secrets.create: false  (default) — expects the Secret to exist in the cluster
-#                                       already (created via kubectl / external-secrets).
-#   secrets.create: true             — the chart creates the Secret from secrets.data.
-#                                       Only use this for dev/testing; avoid storing
-#                                       plain-text credentials in Git.
+#   secrets.create: false  (default) — Secret must already exist in the cluster.
+#                                       Create it manually or via External Secrets:
+#
+#   kubectl create secret generic samma-app-secrets \
+#     --from-literal=SCANNER_DATABASE_URL="postgresql://user:pass@host:5432/samma" \
+#     --from-literal=NEXTAUTH_URL="https://samma.io" \
+#     --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
+#     --from-literal=EMAIL_SERVER_HOST="smtp.example.com" \
+#     --from-literal=EMAIL_SERVER_PORT="587" \
+#     --from-literal=EMAIL_SERVER_USER="noreply@samma.io" \
+#     --from-literal=EMAIL_SERVER_PASSWORD="<password>" \
+#     --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>" \
+#     --from-literal=OPERATOR_API_URL="http://samma-io-operator.samma-io.svc.cluster.local:5000"
+#   # DATABASE_URL is omitted above when postgres.enabled — built automatically.
+#
+#   secrets.create: true  — Chart creates the Secret from secrets.data below.
+#                           Only use for dev/testing; avoid committing credentials.
 secrets:
-  # Whether to create the Kubernetes Secret from values below.
   create: false
-
-  # Name of the Secret to mount. Referenced by the app container and the
-  # migration init container.
   name: samma-app-secrets
-
-  # Values used only when secrets.create: true.
-  # To create the secret manually instead:
-  #   kubectl create secret generic samma-app-secrets \
-  #     --from-literal=DATABASE_URL="postgresql://user:pass@host:5432/samma" \
-  #     --from-literal=SCANNER_DATABASE_URL="postgresql://user:pass@host:5432/samma" \
-  #     --from-literal=NEXTAUTH_URL="https://samma.io" \
-  #     --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
-  #     --from-literal=EMAIL_SERVER_HOST="smtp.example.com" \
-  #     --from-literal=EMAIL_SERVER_PORT="587" \
-  #     --from-literal=EMAIL_SERVER_USER="noreply@samma.io" \
-  #     --from-literal=EMAIL_SERVER_PASSWORD="<password>" \
-  #     --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>"
   data:
+    # Omit DATABASE_URL when postgres.enabled — auto-built from postgres values.
     DATABASE_URL: ""
-    # TimescaleDB for scanner results (scan_results table, joined via samma_id)
+    # TimescaleDB for scanner results (scan_results table, joined via samma_id).
     SCANNER_DATABASE_URL: ""
     NEXTAUTH_URL: "https://samma.io"
     NEXTAUTH_SECRET: ""
@@ -89,10 +94,13 @@ secrets:
     EMAIL_SERVER_USER: ""
     EMAIL_SERVER_PASSWORD: ""
     EMAIL_FROM: "Samma.io <noreply@samma.io>"
+    # Internal URL of the Kubernetes operator Flask API.
+    # Example: http://samma-io-operator.samma-io.svc.cluster.local:5000
+    OPERATOR_API_URL: ""
 
 # ─── Database Migrations ──────────────────────────────────────────────────────
-# An init container runs `prisma migrate deploy` before the app container starts,
-# ensuring the database schema is always up to date on every rollout.
+# An init container runs `prisma migrate deploy` before the app starts,
+# ensuring the schema is always up to date on every rollout.
 migration:
   enabled: true
 
