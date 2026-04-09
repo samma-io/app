@@ -1,0 +1,9 @@
+curl -X POST http://localhost:3000/api/v1/targets \
+  -H "Authorization: Bearer d408f2e8bb6050618432a75ee9c72771700686cf90fabb36c8b6deeb32dc27e4" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "value": "www.utbild.se",
+    "type": "dns",
+    "label": "Main server",
+    "profileId": "cmnebts200006i4u5oktydnfx"
+  }'
