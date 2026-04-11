@@ -1,5 +1,27 @@
 {{- if .Values.cloudnativepg.enabled }}
-# CloudNativePG Cluster — TimescaleDB distribution
+# ── ImageCatalog ──────────────────────────────────────────────────────────────
+# Lists TimescaleDB-HA images for each supported PostgreSQL major version.
+# The Cluster below references this catalog via imageCatalogRef so CNPG can
+# validate and manage image selection per major version.
+apiVersion: postgresql.cnpg.io/v1
+kind: ImageCatalog
+metadata:
+  name: {{ .Values.cloudnativepg.clusterName }}-timescaledb
+  labels:
+    {{- include "samma-app.labels" . | nindent 4 }}
+spec:
+  images:
+    - major: 14
+      image: "timescale/timescaledb-ha:pg14-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+    - major: 15
+      image: "timescale/timescaledb-ha:pg15-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+    - major: 16
+      image: "timescale/timescaledb-ha:pg16-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+    - major: 17
+      image: "timescale/timescaledb-ha:pg17-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+---
+# ── Cluster ───────────────────────────────────────────────────────────────────
+# CloudNativePG Cluster backed by TimescaleDB-HA.
 # The operator creates a secret "{{ .Values.cloudnativepg.clusterName }}-app"
 # with keys: uri, jdbc-uri, pgpass, dbname, host, port, user, password.
 # The "uri" key is mounted as DATABASE_URL in the app and migration containers.
@@ -11,7 +33,12 @@ metadata:
     {{- include "samma-app.labels" . | nindent 4 }}
 spec:
   instances: {{ .Values.cloudnativepg.instances }}
-  imageName: {{ .Values.cloudnativepg.imageName | quote }}
+
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ImageCatalog
+    name: {{ .Values.cloudnativepg.clusterName }}-timescaledb
+    major: {{ .Values.cloudnativepg.imageCatalog.postgresMajor }}
 
   bootstrap:
     initdb:

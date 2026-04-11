@@ -69,15 +69,22 @@ cloudnativepg:
   # Must match the name of your existing CNPG Cluster (or the name to create).
   clusterName: samma-pg
   instances: 1
-  # TimescaleDB-HA image — full CNPG-compatible TimescaleDB distribution.
-  # See: https://github.com/timescale/timescaledb-docker-ha
-  imageName: ghcr.io/timescale/timescaledb-ha:pg16-latest
   storage: 5Gi
   # Leave empty to use the cluster default StorageClass.
   storageClass: ""
   # Database and role created by CNPG inside the cluster.
   database: samma
   owner: samma
+
+  # ── ImageCatalog ──────────────────────────────────────────────────────────
+  # An ImageCatalog is created in the same namespace listing TimescaleDB-HA
+  # images per major PostgreSQL version. The Cluster references it via
+  # imageCatalogRef so CNPG can pick the right image for in-place upgrades.
+  imageCatalog:
+    # TimescaleDB version tag appended to each image, e.g. "2.17.2"
+    timescaledbVersion: "2.17.2"
+    # Which major PostgreSQL version the Cluster should use.
+    postgresMajor: 16
 
 # ─── Secrets ──────────────────────────────────────────────────────────────────
 # All app configuration is loaded from a single Kubernetes Secret via envFrom.
