@@ -42,21 +42,42 @@ resources:
     cpu: 500m
     memory: 256Mi
 
-# ─── PostgreSQL ───────────────────────────────────────────────────────────────
-# When enabled, a PostgreSQL StatefulSet + Service is deployed alongside the app.
-# DATABASE_URL is built automatically from these values and injected into the
-# Secret — do not set secrets.data.DATABASE_URL when postgres.enabled is true.
+# ─── PostgreSQL (legacy in-chart StatefulSet) ─────────────────────────────────
+# Disabled in favour of CloudNativePG below. Keep enabled: false unless you need
+# a standalone postgres for local/dev work without the CNPG operator.
 postgres:
-  enabled: true
+  enabled: false
   image: postgres:16-alpine
   user: samma
-  # Set a strong password in production. Required when postgres.enabled is true.
   password: ""
   database: samma
-  # PVC size for the postgres data volume.
+  storage: 5Gi
+  storageClass: ""
+
+# ─── CloudNativePG ────────────────────────────────────────────────────────────
+# Manages the main application database via the CloudNativePG operator.
+# The operator creates a secret <clusterName>-app containing the connection URI
+# which is injected as DATABASE_URL into the app and migration containers.
+#
+# TimescaleDB is used as the PostgreSQL distribution so the same cluster can
+# serve time-series workloads if needed.
+#
+# If the cluster already exists in the namespace, Helm will adopt it; set
+# clusterName to match your existing CNPG Cluster name.
+cloudnativepg:
+  enabled: true
+  # Must match the name of your existing CNPG Cluster (or the name to create).
+  clusterName: samma-pg
+  instances: 1
+  # TimescaleDB-HA image — full CNPG-compatible TimescaleDB distribution.
+  # See: https://github.com/timescale/timescaledb-docker-ha
+  imageName: ghcr.io/timescale/timescaledb-ha:pg16-latest
   storage: 5Gi
   # Leave empty to use the cluster default StorageClass.
   storageClass: ""
+  # Database and role created by CNPG inside the cluster.
+  database: samma
+  owner: samma
 
 # ─── Secrets ──────────────────────────────────────────────────────────────────
 # All app configuration is loaded from a single Kubernetes Secret via envFrom.
@@ -75,7 +96,7 @@ postgres:
 #     --from-literal=EMAIL_SERVER_PASSWORD="<password>" \
 #     --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>" \
 #     --from-literal=OPERATOR_API_URL="http://samma-io-operator.samma-io.svc.cluster.local:5000"
-#   # DATABASE_URL is omitted above when postgres.enabled — built automatically.
+#   # DATABASE_URL is omitted above — injected from the CNPG secret automatically.
 #
 #   secrets.create: true  — Chart creates the Secret from secrets.data below.
 #                           Only use for dev/testing; avoid committing credentials.
@@ -83,7 +104,10 @@ secrets:
   create: false
   name: samma-app-secrets
   data:
-    # Omit DATABASE_URL when postgres.enabled — auto-built from postgres values.
+    # DATABASE_URL is injected from the CNPG-generated secret (<clusterName>-app)
+    # when cloudnativepg.enabled — do NOT set it here in that case.
+    # Only set DATABASE_URL here when both postgres.enabled and
+    # cloudnativepg.enabled are false (external DB, unmanaged by this chart).
     DATABASE_URL: ""
     # TimescaleDB for scanner results (scan_results table, joined via samma_id).
     SCANNER_DATABASE_URL: ""

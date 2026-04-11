@@ -40,6 +40,17 @@ spec:
                 echo "waiting for postgres..."; sleep 2;
               done
         {{- end }}
+        {{- if .Values.cloudnativepg.enabled }}
+        - name: wait-for-cnpg
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ .Values.cloudnativepg.clusterName }}-rw -p 5432; do
+                echo "waiting for CloudNativePG cluster..."; sleep 2;
+              done
+        {{- end }}
         {{- if .Values.migration.enabled }}
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -48,6 +59,14 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ .Values.secrets.name }}
+          {{- if .Values.cloudnativepg.enabled }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cloudnativepg.clusterName }}-app
+                  key: uri
+          {{- end }}
         {{- end }}
       containers:
         - name: {{ .Chart.Name }}
@@ -60,6 +79,14 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ .Values.secrets.name }}
+          {{- if .Values.cloudnativepg.enabled }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cloudnativepg.clusterName }}-app
+                  key: uri
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /

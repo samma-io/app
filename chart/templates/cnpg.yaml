@@ -1,0 +1,28 @@
+{{- if .Values.cloudnativepg.enabled }}
+# CloudNativePG Cluster — TimescaleDB distribution
+# The operator creates a secret "{{ .Values.cloudnativepg.clusterName }}-app"
+# with keys: uri, jdbc-uri, pgpass, dbname, host, port, user, password.
+# The "uri" key is mounted as DATABASE_URL in the app and migration containers.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cloudnativepg.clusterName }}
+  labels:
+    {{- include "samma-app.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.cloudnativepg.instances }}
+  imageName: {{ .Values.cloudnativepg.imageName | quote }}
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.cloudnativepg.database | quote }}
+      owner: {{ .Values.cloudnativepg.owner | quote }}
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+  storage:
+    size: {{ .Values.cloudnativepg.storage }}
+    {{- if .Values.cloudnativepg.storageClass }}
+    storageClassName: {{ .Values.cloudnativepg.storageClass | quote }}
+    {{- end }}
+{{- end }}
