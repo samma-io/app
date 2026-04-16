@@ -1,5 +1,7 @@
 replicaCount: 1
 
+fullnameOverride: "samma-app"
+
 image:
   repository: ghcr.io/samma-io/app
   tag: latest
@@ -41,18 +43,6 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
-
-# ─── PostgreSQL (legacy in-chart StatefulSet) ─────────────────────────────────
-# Disabled in favour of CloudNativePG below. Keep enabled: false unless you need
-# a standalone postgres for local/dev work without the CNPG operator.
-postgres:
-  enabled: false
-  image: postgres:16-alpine
-  user: samma
-  password: ""
-  database: samma
-  storage: 5Gi
-  storageClass: ""
 
 # ─── CloudNativePG ────────────────────────────────────────────────────────────
 # Manages the main application database via the CloudNativePG operator.
@@ -112,10 +102,7 @@ secrets:
   name: samma-app-secrets
   data:
     # DATABASE_URL is injected from the CNPG-generated secret (<clusterName>-app)
-    # when cloudnativepg.enabled — do NOT set it here in that case.
-    # Only set DATABASE_URL here when both postgres.enabled and
-    # cloudnativepg.enabled are false (external DB, unmanaged by this chart).
-    DATABASE_URL: ""
+    # and must NOT be set here.
     # TimescaleDB for scanner results (scan_results table, joined via samma_id).
     SCANNER_DATABASE_URL: ""
     NEXTAUTH_URL: "https://samma.io"

@@ -29,17 +29,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
-        {{- if .Values.postgres.enabled }}
-        - name: wait-for-postgres
-          image: {{ .Values.postgres.image }}
-          command:
-            - sh
-            - -c
-            - |
-              until pg_isready -h {{ include "samma-app.fullname" . }}-postgres -p 5432 -U {{ .Values.postgres.user }}; do
-                echo "waiting for postgres..."; sleep 2;
-              done
-        {{- end }}
         {{- if .Values.cloudnativepg.enabled }}
         - name: wait-for-cnpg
           image: postgres:16-alpine
