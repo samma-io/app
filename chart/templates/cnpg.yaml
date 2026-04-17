@@ -12,13 +12,13 @@ metadata:
 spec:
   images:
     - major: 14
-      image: "timescale/timescaledb-ha:pg14-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+      image: "timescale/timescaledb-ha:pg14"
     - major: 15
-      image: "timescale/timescaledb-ha:pg15-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+      image: "timescale/timescaledb-ha:pg15"
     - major: 16
-      image: "timescale/timescaledb-ha:pg16-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+      image: "timescale/timescaledb-ha:pg16"
     - major: 17
-      image: "timescale/timescaledb-ha:pg17-ts{{ .Values.cloudnativepg.imageCatalog.timescaledbVersion }}"
+      image: "timescale/timescaledb-ha:pg17"
 ---
 # ── Cluster ───────────────────────────────────────────────────────────────────
 # CloudNativePG Cluster backed by TimescaleDB-HA.
@@ -33,7 +33,8 @@ metadata:
     {{- include "samma-app.labels" . | nindent 4 }}
 spec:
   instances: {{ .Values.cloudnativepg.instances }}
-
+  postgresUID: 70
+  postgresGID: 70
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io
     kind: ImageCatalog
