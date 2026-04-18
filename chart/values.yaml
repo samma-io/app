@@ -65,6 +65,10 @@ cloudnativepg:
   # Database and role created by CNPG inside the cluster.
   database: samma
   owner: samma
+  # UID/GID of the postgres process inside the container.
+  # timescale/timescaledb-ha uses 1000; standard postgres images use 26.
+  postgresUID: 1000
+  postgresGID: 1000
 
   # ── ImageCatalog ──────────────────────────────────────────────────────────
   # An ImageCatalog is created in the same namespace listing TimescaleDB-HA
