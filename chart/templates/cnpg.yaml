@@ -41,6 +41,10 @@ spec:
     name: {{ .Values.cloudnativepg.clusterName }}-timescaledb
     major: {{ .Values.cloudnativepg.imageCatalog.postgresMajor }}
 
+  postgresql:
+    shared_preload_libraries:
+      - timescaledb
+
   bootstrap:
     initdb:
       database: {{ .Values.cloudnativepg.database | quote }}
