@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Samma.io - Security Scanner Manager",
+  title: "Samma.io - Security Scanner Platform",
   description:
-    "Automated security scanning for Kubernetes with integrated SIEM capabilities",
+    "Kubernetes-native security scanning platform. Deploy our operator locally, scan internal and external targets with Nmap, Nikto, Tsunami, and more. Get results in your SIEM.",
 };
 
 export default function RootLayout({
