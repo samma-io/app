@@ -11,6 +11,8 @@ export const authOptions: AuthOptions = {
       server: {
         host: process.env.EMAIL_SERVER_HOST,
         port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
+        secure: process.env.EMAIL_SERVER_SECURE === "true",
+        tls: { rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== "false" },
         auth: {
           user: process.env.EMAIL_SERVER_USER,
           pass: process.env.EMAIL_SERVER_PASSWORD,

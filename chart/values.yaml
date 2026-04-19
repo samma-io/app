@@ -116,6 +116,10 @@ secrets:
     EMAIL_SERVER_USER: ""
     EMAIL_SERVER_PASSWORD: ""
     EMAIL_FROM: "Samma.io <noreply@samma.io>"
+    # Set to "true" for implicit TLS (port 465). Leave "false" for plain/STARTTLS.
+    EMAIL_SERVER_SECURE: "false"
+    # Set to "false" to skip TLS cert verification (e.g. internal relay).
+    EMAIL_TLS_REJECT_UNAUTHORIZED: "false"
     # Internal URL of the Kubernetes operator Flask API.
     # Example: http://samma-io-operator.samma-io.svc.cluster.local:5000
     OPERATOR_API_URL: ""
