@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
+import { isLocalTarget } from "@/lib/network";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -76,14 +77,21 @@ export async function POST(req: NextRequest) {
   }
 
   // 6. Create the target
+  const local = await isLocalTarget(value, type as "ip" | "dns");
+
   const target = await prisma.target.create({
     data: {
       profileId: profile.id,
       value,
       type,
       label: label && typeof label === "string" ? label : null,
+      scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
     },
   });
+
+  if (local) {
+    return NextResponse.json({ ...target, scannerStatus: "LOCAL" }, { status: 201 });
+  }
 
   const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
     .catch((err) => { console.error("[operator] registration failed:", err); return false; });
@@ -169,14 +177,21 @@ export async function PUT(req: NextRequest) {
   }
 
   // 7. Create new target
+  const local = await isLocalTarget(value, type as "ip" | "dns");
+
   const target = await prisma.target.create({
     data: {
       profileId: profile.id,
       value,
       type,
       label: label && typeof label === "string" ? label : null,
+      scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
     },
   });
+
+  if (local) {
+    return NextResponse.json({ ...target, scannerStatus: "LOCAL" }, { status: 200 });
+  }
 
   const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
     .catch((err) => { console.error("[operator] registration failed:", err); return false; });

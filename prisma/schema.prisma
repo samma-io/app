@@ -124,6 +124,7 @@ enum TargetType {
 enum ScannerStatus {
   READY_TO_DEPLOY
   DEPLOYED
+  LOCAL
 }
 
 enum ReachabilityStatus {

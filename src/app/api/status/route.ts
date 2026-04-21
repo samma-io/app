@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getScannerDb } from "@/lib/scanner-db";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const targets = await prisma.target.count();

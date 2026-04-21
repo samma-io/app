@@ -29,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { getScannerDb } from "@/lib/scanner-db";
 
+export const dynamic = "force-dynamic";
+
 async function getStats() {
   const targets = await prisma.target.count();
 

@@ -8,6 +8,7 @@ import { getActiveOrg, getUserOrgs, ACTIVE_ORG_COOKIE } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
+import { isLocalTarget } from "@/lib/network";
 import type { ProfileType } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
@@ -57,9 +58,25 @@ export async function addTarget(
   });
   if (!profile) throw new Error("Profile not found");
 
+  const local = await isLocalTarget(value, type);
+
   const target = await prisma.target.create({
-    data: { profileId, value, type, label: label ?? null, port: port ?? null },
+    data: {
+      profileId,
+      value,
+      type,
+      label: label ?? null,
+      port: port ?? null,
+      scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+    },
   });
+
+  if (local) {
+    const updated = target;
+    revalidatePath(`/dashboard/profiles/${profileId}`);
+    revalidatePath("/dashboard");
+    return updated;
+  }
 
   const deployed = await registerTargetWithOperator(target.value, target.id, profile.type, profile.id)
     .catch((err) => { console.error("[operator] registration failed:", err); return false; });
