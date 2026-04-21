@@ -20,8 +20,40 @@ import {
   Terminal,
   Cpu,
   CloudUpload,
+  Target,
+  Activity,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/prisma";
+import { getScannerDb } from "@/lib/scanner-db";
+
+async function getStats() {
+  const targets = await prisma.target.count();
+
+  let scannerRuns = 0;
+  let critical = 0;
+  let high = 0;
+
+  const db = getScannerDb();
+  if (db) {
+    try {
+      const [runsResult, criticalResult, highResult] = await Promise.all([
+        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results`,
+        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE raw->>'severity' = 'critical'`,
+        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE raw->>'severity' = 'high'`,
+      ]);
+      scannerRuns = Number(runsResult[0].count);
+      critical = Number(criticalResult[0].count);
+      high = Number(highResult[0].count);
+    } catch {
+      // scanner DB unavailable — fall back to zeroes
+    }
+  }
+
+  return { targets, scannerRuns, critical, high };
+}
 
 const features = [
   {
@@ -160,7 +192,8 @@ const techBadges = [
   "Kibana",
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const stats = await getStats();
   return (
     <div>
       {/* Hero Section */}
@@ -213,6 +246,42 @@ export default function HomePage() {
                   Explore SIEM
                 </Button>
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Stats Bar */}
+      <section className="bg-samma-navy border-t border-white/10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="flex items-center gap-4">
+              <Target className="h-8 w-8 text-samma-gold shrink-0" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.targets.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">Targets Monitored</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Activity className="h-8 w-8 text-samma-gold shrink-0" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.scannerRuns.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">Scanner Runs</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <AlertCircle className="h-8 w-8 text-red-500 shrink-0" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.critical.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">Critical Findings</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <AlertTriangle className="h-8 w-8 text-orange-400 shrink-0" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.high.toLocaleString()}</p>
+                <p className="text-sm text-gray-400">High Findings</p>
+              </div>
             </div>
           </div>
         </div>

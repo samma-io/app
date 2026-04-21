@@ -108,7 +108,7 @@ export default async function TokensPage() {
             endpoint.
           </p>
           <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-xs font-mono overflow-auto">
-            {`curl -X POST https://your-domain/api/v1/targets \\
+            {`curl -X POST https://www.samma.io/api/v1/targets \\
   -H "Authorization: Bearer <your-api-token>" \\
   -H "Content-Type: application/json" \\
   -d '{
