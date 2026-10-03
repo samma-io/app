@@ -9,6 +9,9 @@ const tools = [
   { name: "Grafana", role: "Metrics & dashboards" },
   { name: "Kibana", role: "Log analysis & dashboards" },
   { name: "Vector.dev", role: "Log pipeline" },
+  { name: "AWS", role: "Cloud SIEM (S3, ECS, Lambda)" },
+  { name: "Sigma", role: "Detection rules" },
+  { name: "Quickwit", role: "Log search" },
   { name: "Helm", role: "Deployment & packaging" },
   { name: "Nmap", role: "Network scanning" },
   { name: "Nikto", role: "Web vulnerability scanning" },
@@ -111,7 +114,10 @@ export default function AboutPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-samma-gold mt-2 flex-shrink-0" />
-                    <span>SIEM rule engine with YAML-based detection rules</span>
+                    <span>
+                      Two SIEMs: a Kubernetes rule engine with YAML rules, and
+                      an AWS SIEM with Sigma detections
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-samma-gold mt-2 flex-shrink-0" />
