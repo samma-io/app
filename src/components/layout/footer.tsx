@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Shield } from "lucide-react";
-import { NAV_LINKS, SITE } from "@/lib/constants";
+import {
+  GITHUB_ORG_URL,
+  GUIDE_LINKS,
+  GUIDE_URL,
+  NAV_LINKS,
+  SITE,
+} from "@/lib/constants";
 
 export default function Footer() {
   return (
@@ -46,7 +52,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://github.com/samma-io"
+                  href={GITHUB_ORG_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -56,12 +62,32 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="https://samma.io"
+                  href={GUIDE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
                   Documentation
+                </a>
+              </li>
+              <li>
+                <a
+                  href={GUIDE_LINKS.kubernetesSiem}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Kubernetes SIEM guide
+                </a>
+              </li>
+              <li>
+                <a
+                  href={GUIDE_LINKS.awsSiemDataFlow}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  AWS SIEM guide
                 </a>
               </li>
             </ul>

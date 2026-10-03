@@ -72,9 +72,9 @@ const features = [
   },
   {
     icon: FileText,
-    title: "SIEM Rule Engine",
+    title: "Two SIEM Options",
     description:
-      "YAML-based rules with compliance mappings for PCI-DSS, GDPR, HIPAA, NIST, and MITRE ATT&CK frameworks.",
+      "Run the Kubernetes SIEM in your cluster with compliance-mapped YAML rules, or the AWS SIEM in your account with Sigma detections and alerts to Slack and GitHub.",
   },
   {
     icon: Radio,
@@ -146,7 +146,7 @@ const steps = [
     icon: Bell,
     title: "Analyze & Alert",
     description:
-      "The SIEM rule engine processes findings through NATS and sends alerts to your dashboards, SIEM, or any webhook destination.",
+      "Findings land in your Samma dashboard. Add the Kubernetes or AWS SIEM to turn cluster and cloud logs into alerts.",
   },
 ];
 
@@ -192,6 +192,9 @@ const techBadges = [
   "Elasticsearch",
   "Grafana",
   "Kibana",
+  "AWS",
+  "Sigma",
+  "Quickwit",
 ];
 
 export default async function HomePage() {
@@ -331,8 +334,8 @@ export default async function HomePage() {
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               All scanners run as containerized jobs, fully orchestrated by the
-              Samma operator. Each produces structured JSON output that flows
-              through the SIEM pipeline.
+              Samma operator. Each produces structured JSON findings that land
+              in TimescaleDB and your Samma dashboard.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -471,7 +474,7 @@ spec:
                     >
                       Samma.io dashboard
                     </Link>{" "}
-                    in real time, and are forwarded to your SIEM pipeline.
+                    in real time.
                   </p>
                 </div>
               </div>
