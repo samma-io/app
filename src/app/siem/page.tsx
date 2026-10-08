@@ -15,9 +15,103 @@ import {
   Search,
   LayoutDashboard,
   Boxes,
+  Plug,
+  Share2,
+  Split,
+  EyeOff,
+  Server,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GITHUB_ORG_URL, GUIDE_LINKS, GUIDE_URL } from "@/lib/constants";
+
+const dataFlow = [
+  {
+    icon: Plug,
+    title: "Connect",
+    description:
+      "The ingester connects to AWS, GCP, GitHub, 1Password, Slack, Google Workspace, Cloudflare, with more sources coming.",
+  },
+  {
+    icon: Filter,
+    title: "Normalise",
+    description:
+      "Vector normalises every record and stores it. Raw logs are kept for six years.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Detect",
+    description:
+      "Sigma rules run per source, such as a GitHub lane and an AWS lane. 65 rules, each with a test.",
+  },
+  {
+    icon: Search,
+    title: "Search",
+    description: "Every log can be queried in Quickwit or Grafana.",
+  },
+  {
+    icon: Bell,
+    title: "React",
+    description: "Alerts are delivered to Slack and GitHub, where your team works.",
+  },
+];
+
+const sources = [
+  "AWS CloudTrail",
+  "VPC Flow Logs",
+  "Route 53 DNS",
+  "ALB",
+  "GitHub",
+  "GCP",
+  "Google Workspace",
+  "1Password",
+  "Slack",
+  "Cloudflare",
+];
+
+const sharing = [
+  {
+    icon: Share2,
+    title: "Connect External SIEMs",
+    description:
+      "Forward your logs to one or several external SIEM providers and get their alerts back.",
+  },
+  {
+    icon: Split,
+    title: "Why Only One?",
+    description:
+      "Split the same stream to several providers and let them all alert on it.",
+  },
+  {
+    icon: Filter,
+    title: "Filter Before You Share",
+    description:
+      "Why send all your data to an external SIEM? Choose exactly which data leaves your pipeline.",
+  },
+  {
+    icon: EyeOff,
+    title: "Anonymise",
+    description:
+      "Replace sensitive values before they are shared, for example swap the CEO's name for an alias.",
+  },
+];
+
+const platforms = [
+  {
+    icon: Cloud,
+    name: "AWS",
+    description: "Deploys with Terraform into your own account. Cheap to run.",
+  },
+  {
+    icon: Cloud,
+    name: "GCP",
+    description: "Runs in your Google Cloud project. Easy to deploy.",
+  },
+  {
+    icon: Server,
+    name: "On-prem Kubernetes",
+    description: "Runs in your own cluster, next to your workloads.",
+  },
+];
 
 const deployments = [
   {
@@ -152,7 +246,7 @@ const comparison = [
   {
     label: "Runs on",
     kubernetes: "Any Kubernetes cluster",
-    aws: "Your AWS account (S3, SQS, ECS Fargate, Lambda)",
+    aws: "Your AWS account (S3, SQS, ECS Fargate, Lambda), GCP or on-prem Kubernetes",
   },
   {
     label: "Input",
@@ -210,17 +304,27 @@ export default function SiemFeaturePage() {
               </span>
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
-              Rule-Driven Detection,{" "}
-              <span className="text-samma-gold">Two Places to Run It</span>
+              Own Your Data.{" "}
+              <span className="text-samma-gold">Own Your Detection.</span>
             </h1>
             <p className="text-lg text-gray-300 mb-10 leading-relaxed">
-              Run the Kubernetes SIEM inside your cluster, the AWS SIEM in
-              your cloud account, or both. Each one turns raw events into
-              alerts with rules you keep in git.
+              When you own your flow of logs, you control your security
+              actions. That used to be hard. Today it is easy to deploy and
+              cheap to run, on AWS, GCP or on-prem Kubernetes.
             </p>
             <div className="flex flex-wrap gap-4">
-              <a href="#kubernetes">
+              <a href="#own-your-data">
                 <Button variant="primary" size="lg">
+                  <Workflow className="mr-2 h-5 w-5" />
+                  How It Works
+                </Button>
+              </a>
+              <a href="#kubernetes">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-white text-white hover:bg-white hover:text-samma-navy"
+                >
                   <Container className="mr-2 h-5 w-5" />
                   Kubernetes SIEM
                 </Button>
@@ -236,6 +340,126 @@ export default function SiemFeaturePage() {
                 </Button>
               </a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Own your data flow */}
+      <section id="own-your-data" className="py-20 bg-white scroll-mt-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Own Your Flow of Logs
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              From source to alert, every step runs in your own environment.
+              You decide what is collected, what is kept and how you react.
+            </p>
+          </div>
+          <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
+            {dataFlow.map((step, i) => (
+              <div
+                key={step.title}
+                className="flex flex-col lg:flex-row items-center gap-4 lg:flex-1"
+              >
+                <div className="w-full h-full border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div className="rounded-lg bg-samma-lavender p-3 w-fit mb-4">
+                    <step.icon className="h-6 w-6 text-samma-navy" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {i + 1}. {step.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
+                {i < dataFlow.length - 1 && (
+                  <ArrowRight className="h-5 w-5 text-samma-gold shrink-0 rotate-90 lg:rotate-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sources */}
+      <section className="py-16 bg-samma-lavender">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">
+            Connect Your Sources
+          </h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {sources.map((src) => (
+              <span
+                key={src}
+                className="rounded-full border border-samma-navy/20 bg-white px-4 py-2 text-sm font-medium text-samma-navy"
+              >
+                {src}
+              </span>
+            ))}
+            <span className="rounded-full border border-dashed border-samma-navy/40 px-4 py-2 text-sm font-medium text-samma-navy">
+              + more coming
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Share on your terms */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Share on Your Terms
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              When you control the flow, you choose who else sees it.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {sharing.map((item) => (
+              <div
+                key={item.title}
+                className="border border-gray-200 border-l-4 border-l-samma-navy rounded-lg p-6 hover:shadow-md transition-shadow"
+              >
+                <item.icon className="h-8 w-8 text-samma-navy mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Run it anywhere */}
+      <section className="py-20 bg-samma-lavender">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Run It Anywhere
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Easy to deploy and cheap to run, wherever your workloads live.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {platforms.map((p) => (
+              <div
+                key={p.name}
+                className="bg-white border border-gray-200 rounded-lg p-6 text-center hover:shadow-md transition-shadow"
+              >
+                <p.icon className="h-10 w-10 text-samma-navy mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {p.name}
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {p.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -499,6 +723,22 @@ detection:
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      {/* Manifesto */}
+      <section className="bg-gradient-to-br from-samma-navy to-samma-navy-dark py-20">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-2xl sm:text-3xl font-bold text-white leading-snug mb-6">
+            You can&apos;t choose whether you get hacked. You can choose{" "}
+            <span className="text-samma-gold">
+              how fast you detect it and how you react.
+            </span>
+          </p>
+          <p className="text-lg text-gray-300">
+            It&apos;s time to take detection seriously. Owning your flow of
+            logs is where it starts.
+          </p>
         </div>
       </section>
 
