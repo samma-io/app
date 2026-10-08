@@ -72,9 +72,9 @@ const features = [
   },
   {
     icon: FileText,
-    title: "Two SIEM Options",
+    title: "Own Your Security Data",
     description:
-      "Run the Kubernetes SIEM in your cluster with compliance-mapped YAML rules, or the AWS SIEM in your account with Sigma detections and alerts to Slack and GitHub.",
+      "Connect your cloud and SaaS sources, detect with Sigma rules per source, and alert to Slack and GitHub. Share only what you choose with external SIEMs.",
   },
   {
     icon: Radio,
@@ -146,7 +146,7 @@ const steps = [
     icon: Bell,
     title: "Analyze & Alert",
     description:
-      "Findings land in your Samma dashboard. Add the Kubernetes or AWS SIEM to turn cluster and cloud logs into alerts.",
+      "Findings land in your Samma dashboard. Own your log flow with the Samma SIEM: connect your sources, detect per source, and alert where your team works.",
   },
 ];
 
