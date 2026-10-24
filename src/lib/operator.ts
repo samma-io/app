@@ -34,19 +34,42 @@ export async function registerTargetWithOperator(
 }
 
 /**
+ * Outcome of a removal request to the operator:
+ * - "removed" — operator acknowledged deletion (2xx) or reported the target
+ *   as already gone (404)
+ * - "not_configured" — OPERATOR_API_URL is unset (normal in development), no
+ *   call was made
+ * - "failed" — the call could not be completed (network error or unexpected
+ *   response status)
+ */
+export type RemoveTargetResult = "removed" | "not_configured" | "failed";
+
+/**
  * Removes a scan target from the operator (deletes all Scanner CRDs for that target).
  *
- * Returns true on success or 404 (already gone). False if URL not configured or call fails.
+ * Never throws. Returns "removed" on success or 404 (already gone),
+ * "not_configured" if OPERATOR_API_URL is unset, or "failed" for network
+ * errors / unexpected response statuses (logged via console.error).
+ * Callers no longer need to .catch() — check the returned outcome instead.
  */
-export async function removeTargetFromOperator(targetValue: string): Promise<boolean> {
+export async function removeTargetFromOperator(
+  targetValue: string
+): Promise<RemoveTargetResult> {
   const url = process.env.OPERATOR_API_URL;
-  if (!url) return false;
+  if (!url) return "not_configured";
 
-  const res = await fetch(`${url.replace(/\/$/, "")}/target`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target: targetValue }),
-  });
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/target`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: targetValue }),
+    });
 
-  return res.ok || res.status === 404;
+    if (res.ok || res.status === 404) return "removed";
+    console.error(`[operator] remove failed with status ${res.status} for target "${targetValue}"`);
+    return "failed";
+  } catch (err) {
+    console.error(`[operator] remove request failed for target "${targetValue}":`, err);
+    return "failed";
+  }
 }

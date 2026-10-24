@@ -32,8 +32,25 @@ export async function deleteProfile(profileId: string) {
 
   const profile = await prisma.profile.findFirst({
     where: { id: profileId, organisationId: org.id },
+    include: { targets: true },
   });
   if (!profile) throw new Error("Profile not found");
+
+  // Remove each target from the operator before deleting the profile so its
+  // Scanner CRs are not left orphaned. "not_configured" (dev) and "removed"
+  // do not block deletion; only a genuine operator failure aborts, keeping
+  // the records available for retry.
+  const failedRemovals: string[] = [];
+  for (const target of profile.targets) {
+    const result = await removeTargetFromOperator(target.value);
+    if (result === "failed") failedRemovals.push(target.value);
+  }
+
+  if (failedRemovals.length > 0) {
+    throw new Error(
+      `Operator failed to remove scanners for: ${failedRemovals.join(", ")}. Profile was not deleted.`
+    );
+  }
 
   await prisma.profile.delete({ where: { id: profileId } });
 
@@ -99,9 +116,12 @@ export async function deleteTarget(targetId: string, profileId: string) {
   });
   if (!target) throw new Error("Target not found");
 
-  removeTargetFromOperator(target.value).catch(
-    (err) => console.error("[operator] remove on delete failed:", err)
-  );
+  const result = await removeTargetFromOperator(target.value);
+  if (result === "failed") {
+    throw new Error(
+      `Operator failed to remove scanners for target "${target.value}". Target was not deleted.`
+    );
+  }
 
   await prisma.target.delete({ where: { id: targetId } });
 
@@ -141,9 +161,12 @@ export async function undeployTarget(targetId: string, profileId: string) {
   });
   if (!target) throw new Error("Target not found");
 
-  await removeTargetFromOperator(target.value).catch(
-    (err) => console.error("[operator] undeploy failed:", err)
-  );
+  const result = await removeTargetFromOperator(target.value);
+  if (result === "failed") {
+    throw new Error(
+      `Operator failed to remove scanners for target "${target.value}".`
+    );
+  }
 
   await prisma.target.update({
     where: { id: targetId },
