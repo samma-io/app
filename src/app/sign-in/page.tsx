@@ -1,28 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { checkUserExists } from "./actions";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
     setIsPending(true);
-
-    const exists = await checkUserExists(email);
-    if (!exists) {
-      router.push(`/onboarding?email=${encodeURIComponent(email)}`);
-      return;
-    }
 
     await signIn("email", { email, redirect: false, callbackUrl: "/dashboard" });
     setSubmitted(true);
@@ -46,7 +37,7 @@ export default function SignInPage() {
           <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center">
             <p className="text-sm font-medium text-green-800">Check your email</p>
             <p className="text-sm text-green-700 mt-1">
-              A sign-in link has been sent to <strong>{email}</strong>.
+              If an account exists for that email, a sign-in link is on its way.
             </p>
           </div>
         ) : (
@@ -75,7 +66,7 @@ export default function SignInPage() {
               className="w-full"
               disabled={isPending}
             >
-              {isPending ? "Checking…" : "Continue"}
+              {isPending ? "Sending…" : "Continue"}
             </Button>
           </form>
         )}
