@@ -1,99 +1,41 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { saveOnboardingDetails } from "./actions";
 
-function OnboardingForm() {
-  const searchParams = useSearchParams();
+export default function OnboardingPage() {
   const router = useRouter();
-  const email = searchParams.get("email") ?? "";
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated: () => router.replace("/sign-in"),
+  });
 
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [isPending, setIsPending] = useState(false);
 
-  if (!email) {
-    router.replace("/sign-in");
-    return null;
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="animate-spin h-8 w-8 border-4 border-samma-navy border-t-transparent rounded-full" />
+      </div>
+    );
   }
+
+  const email = session?.user?.email ?? "";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !orgName.trim()) return;
     setIsPending(true);
-    await saveOnboardingDetails(email, name.trim(), orgName.trim());
-    await signIn("email", { email, redirect: false, callbackUrl: "/dashboard" });
-    setSubmitted(true);
-    setIsPending(false);
+    await saveOnboardingDetails(name.trim(), orgName.trim());
+    router.push("/dashboard");
   }
 
-  if (submitted) {
-    return (
-      <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center">
-        <p className="text-sm font-medium text-green-800">Check your email</p>
-        <p className="text-sm text-green-700 mt-1">
-          A sign-in link has been sent to <strong>{email}</strong>.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label
-          htmlFor="name"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Full name
-        </label>
-        <input
-          id="name"
-          type="text"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Jane Smith"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-samma-navy"
-          disabled={isPending}
-        />
-      </div>
-      <div>
-        <label
-          htmlFor="orgName"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Organisation name
-        </label>
-        <input
-          id="orgName"
-          type="text"
-          required
-          value={orgName}
-          onChange={(e) => setOrgName(e.target.value)}
-          placeholder="Acme Security"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-samma-navy"
-          disabled={isPending}
-        />
-      </div>
-      <Button
-        type="submit"
-        variant="primary"
-        className="w-full"
-        disabled={isPending}
-      >
-        {isPending ? "Sending…" : "Send magic link"}
-      </Button>
-    </form>
-  );
-}
-
-export default function OnboardingPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm space-y-6">
@@ -106,9 +48,68 @@ export default function OnboardingPage() {
             Tell us a bit about yourself to get started.
           </p>
         </div>
-        <Suspense>
-          <OnboardingForm />
-        </Suspense>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              readOnly
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-lg text-sm text-gray-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Full name
+            </label>
+            <input
+              id="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jane Smith"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-samma-navy"
+              disabled={isPending}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="orgName"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Organisation name
+            </label>
+            <input
+              id="orgName"
+              type="text"
+              required
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Acme Security"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-samma-navy"
+              disabled={isPending}
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            disabled={isPending}
+          >
+            {isPending ? "Saving…" : "Save and continue"}
+          </Button>
+        </form>
       </div>
     </div>
   );
