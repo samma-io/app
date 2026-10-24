@@ -1,21 +1,29 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { saveOnboardingDetails } from "./actions";
 
 function OnboardingForm() {
-  const searchParams = useSearchParams();
+  const { data: session, status } = useSession({ required: true });
   const router = useRouter();
-  const email = searchParams.get("email") ?? "";
+  const email = session?.user?.email ?? "";
 
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isPending, setIsPending] = useState(false);
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin h-8 w-8 border-4 border-samma-navy border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   if (!email) {
     router.replace("/sign-in");
@@ -26,7 +34,7 @@ function OnboardingForm() {
     e.preventDefault();
     if (!name.trim() || !orgName.trim()) return;
     setIsPending(true);
-    await saveOnboardingDetails(email, name.trim(), orgName.trim());
+    await saveOnboardingDetails(name.trim(), orgName.trim());
     await signIn("email", { email, redirect: false, callbackUrl: "/dashboard" });
     setSubmitted(true);
     setIsPending(false);
@@ -45,6 +53,21 @@ function OnboardingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Email address
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          readOnly
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-500 focus:outline-none"
+        />
+      </div>
       <div>
         <label
           htmlFor="name"
@@ -106,9 +129,7 @@ export default function OnboardingPage() {
             Tell us a bit about yourself to get started.
           </p>
         </div>
-        <Suspense>
-          <OnboardingForm />
-        </Suspense>
+        <OnboardingForm />
       </div>
     </div>
   );
