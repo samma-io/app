@@ -128,9 +128,11 @@ kubectl create secret generic samma-app-secrets -n samma \
   --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>" \
   --from-literal=EMAIL_SERVER_SECURE="false" \
   --from-literal=EMAIL_TLS_REJECT_UNAUTHORIZED="false" \
-  --from-literal=SCANNER_DATABASE_URL="postgresql://samma:samma@timescaledb.samma-io.svc:5432/samma" \
+  --from-literal=SCANNER_DATABASE_URL="postgresql://samma:<timescaledb-password>@timescaledb.samma-io.svc:5432/samma" \
   --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080"
 ```
+
+Replace `<timescaledb-password>` with the password from the operator chart's TimescaleDB Secret (key `password`), which you set via the chart values `timescaledb.password` or point at with `timescaledb.existingSecret`.
 
 `DATABASE_URL` is injected automatically from the CNPG-generated secret `samma-pg-app`.
 
