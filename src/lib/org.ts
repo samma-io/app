@@ -40,3 +40,26 @@ export async function getUserOrgs(userId: string) {
   });
   return memberships.map((m) => m.organisation);
 }
+
+export async function requireOrgRole(allowedRoles: string[]) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const cookieStore = await cookies();
+  const orgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
+  if (!orgId) throw new Error("No active organization");
+
+  const membership = await prisma.orgMembership.findUnique({
+    where: {
+      userId_organisationId: {
+        userId: session.user.id,
+        organisationId: orgId,
+      },
+    },
+  });
+  if (!membership || !allowedRoles.includes(membership.role)) {
+    throw new Error("Insufficient role");
+  }
+
+  return membership;
+}
