@@ -139,6 +139,22 @@ export async function deployTarget(targetId: string, profileId: string) {
   });
   if (!target) throw new Error("Target not found");
 
+  if (target.scannerStatus === "LOCAL") {
+    throw new Error("Local targets cannot be deployed");
+  }
+
+  const local = await isLocalTarget(target.value, target.type);
+  if (local) {
+    console.error("[deployTarget] refused local target:", target.value);
+    if (target.scannerStatus !== "DEPLOYED") {
+      await prisma.target.update({
+        where: { id: targetId },
+        data: { scannerStatus: "LOCAL" },
+      });
+    }
+    throw new Error("Local targets cannot be deployed");
+  }
+
   const deployed = await registerTargetWithOperator(
     target.value, target.id, target.profile.type, target.profile.id
   ).catch((err) => { console.error("[operator] deploy failed:", err); return false; });
