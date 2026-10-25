@@ -15,11 +15,13 @@ export function TargetScannerButtons({ targetId, profileId, scannerStatus }: Pro
   const [deployPending, startDeploy] = useTransition();
   const [undeployPending, startUndeploy] = useTransition();
 
+  const isLocal = scannerStatus === "LOCAL";
+
   return (
     <div className="flex items-center gap-1">
       <button
-        title="Deploy scanners"
-        disabled={scannerStatus === "DEPLOYED" || deployPending || undeployPending}
+        title={isLocal ? "Local targets cannot be deployed" : "Deploy scanners"}
+        disabled={isLocal || scannerStatus === "DEPLOYED" || deployPending || undeployPending}
         onClick={() => startDeploy(() => deployTarget(targetId, profileId))}
         className="p-1 rounded text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
