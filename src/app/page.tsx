@@ -80,7 +80,7 @@ const features = [
     icon: Radio,
     title: "NATS Integration",
     description:
-      "Real-time event processing via NATS message bus. Scanner results and security events flow through a unified pipeline.",
+      "Scanner results flow over NATS. On Kubernetes the SIEM runs on NATS JetStream too: raw logs, normalised records and alerts each have their own stream.",
   },
   {
     icon: CloudUpload,
@@ -92,7 +92,7 @@ const features = [
     icon: LayoutDashboard,
     title: "Your Dashboards",
     description:
-      "Samma feeds data to Grafana, Kibana, or any tool you already use. We provide the pipeline — you choose the visualization.",
+      "Samma feeds data to Grafana, Quickwit, or any tool you already use. We provide the pipeline — you choose the visualization.",
   },
 ];
 
@@ -189,9 +189,8 @@ const techBadges = [
   "Python",
   "NATS",
   "Vector.dev",
-  "Elasticsearch",
+  "TimescaleDB",
   "Grafana",
-  "Kibana",
   "AWS",
   "Sigma",
   "Quickwit",
@@ -534,18 +533,18 @@ spec:
               Use your own dashboards
             </h2>
             <p className="text-lg text-gray-600 leading-relaxed mb-4">
-              Samma doesn&apos;t try to replace your existing tools. All scan
-              results and security events are published as structured data to
-              Elasticsearch via NATS and Vector.dev.
+              Samma doesn&apos;t try to replace your existing tools. Scan
+              results land in TimescaleDB, and SIEM logs and alerts are kept
+              as structured data in S3 and Postgres, searchable in Quickwit.
             </p>
             <p className="text-lg text-gray-600 leading-relaxed mb-8">
-              Use <strong>Grafana</strong>, <strong>Kibana</strong>, or any
+              Use <strong>Grafana</strong>, <strong>Quickwit</strong>, or any
               visualization tool your team already knows. We provide pre-built
               dashboard templates to get you started, but the data is yours to
               query however you like.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
-              {["Grafana", "Kibana", "Elasticsearch", "NATS", "Vector.dev"].map(
+              {["Grafana", "Quickwit", "TimescaleDB", "NATS", "Vector.dev"].map(
                 (tool) => (
                   <span
                     key={tool}

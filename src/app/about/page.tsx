@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 const tools = [
   { name: "Kubernetes", role: "Orchestration platform" },
   { name: "Docker", role: "Container runtime" },
-  { name: "NATS", role: "Message streaming" },
-  { name: "Elasticsearch", role: "Event storage & search" },
+  { name: "NATS JetStream", role: "Message streaming" },
+  { name: "TimescaleDB", role: "Findings & alert storage (Postgres)" },
   { name: "Grafana", role: "Metrics & dashboards" },
-  { name: "Kibana", role: "Log analysis & dashboards" },
-  { name: "Vector.dev", role: "Log pipeline" },
+  { name: "Vector.dev", role: "Log normalisation" },
   { name: "AWS", role: "Cloud SIEM (S3, ECS, Lambda)" },
   { name: "Sigma", role: "Detection rules" },
   { name: "Quickwit", role: "Log search" },
@@ -61,7 +60,7 @@ export default function AboutPage() {
             </p>
             <p className="text-lg text-gray-600 leading-relaxed">
               We don&apos;t build dashboards to lock you in. Samma produces
-              structured data that works with Grafana, Kibana, or any tool
+              structured data that works with Grafana, Quickwit, or any tool
               your team prefers. The platform does the scanning and
               processing &mdash; you choose how to visualize it.
             </p>
@@ -83,7 +82,7 @@ export default function AboutPage() {
                 </div>
                 <p className="text-gray-600 leading-relaxed mb-4">
                   Every line of Samma is open source. The Kubernetes operator,
-                  the SIEM rule engine, the scanner orchestration, and all
+                  the SIEM detection engine, the scanner orchestration, and all
                   configuration &mdash; it&apos;s all on GitHub.
                 </p>
                 <p className="text-gray-600 leading-relaxed mb-6">
@@ -115,8 +114,8 @@ export default function AboutPage() {
                   <li className="flex items-start gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-samma-gold mt-2 flex-shrink-0" />
                     <span>
-                      Two SIEMs: a Kubernetes rule engine with YAML rules, and
-                      an AWS SIEM with Sigma detections
+                      One SIEM on AWS or Kubernetes: the same ingester, Vector,
+                      Sigma detection engine and Slack and GitHub alerts on both
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
@@ -129,7 +128,7 @@ export default function AboutPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-samma-gold mt-2 flex-shrink-0" />
-                    <span>Pre-built Grafana and Kibana dashboards</span>
+                    <span>Pre-built Grafana dashboards over Quickwit</span>
                   </li>
                 </ul>
               </div>

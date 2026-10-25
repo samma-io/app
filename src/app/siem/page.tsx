@@ -118,14 +118,14 @@ const deployments = [
     id: "kubernetes",
     icon: Container,
     name: "Kubernetes SIEM",
-    tagline: "What is happening inside my cluster?",
+    tagline: "Can my SIEM run inside my own cluster?",
     description:
-      "A lightweight rule engine that runs next to your workloads. Cluster events stream over NATS and are matched against compliance-mapped YAML rules.",
+      "The same ingester, Vector, detection engine and Sigma rules as the AWS SIEM, running next to your workloads. The parts talk over NATS JetStream instead of S3 and SQS.",
     points: [
       "Runs in any Kubernetes cluster",
-      "YAML rules with PCI DSS, NIST, MITRE ATT&CK and more",
-      "Alerts in Elasticsearch or Loki, viewed in Grafana",
-      "Installs with Helm charts and plain manifests",
+      "The same Sigma rules as the AWS SIEM, each with tests",
+      "Alerts to Slack and GitHub issues",
+      "Search in Quickwit, with Grafana dashboards",
     ],
     guide: GUIDE_LINKS.kubernetesSiem,
     repo: "https://github.com/samma-io/siem",
@@ -151,27 +151,27 @@ const deployments = [
 const kubernetesCapabilities = [
   {
     icon: FileText,
-    title: "YAML-Based Rules",
+    title: "Sigma Rules per Lane",
     description:
-      "Each rule names a severity, the NATS subject to publish alerts on, and its compliance mappings. Match on any field with nested and/or logic using equals or regex. Version-control the rule set alongside your infrastructure.",
+      "The detection engine runs Sigma rules, one service per lane, in the same rule format as the AWS SIEM. Rules from SigmaHQ work too, and every rule ships with a test.",
   },
   {
     icon: Radio,
-    title: "NATS Event Streaming",
+    title: "NATS JetStream",
     description:
-      "Fluent Bit and Vector publish cluster logs to NATS. The rule engine subscribes, evaluates every event as it arrives, and publishes matches to per-rule alert subjects.",
+      "The ingester pulls SaaS audit logs onto NATS JetStream. Alerts go on their own stream, then on to Slack and GitHub issues.",
   },
   {
     icon: Workflow,
-    title: "Vector.dev Pipeline",
+    title: "Vector Normalisation",
     description:
-      "Vector formats logs on the way in and acts as the alert sink on the way out. It writes every alert to your storage backend, indexed by severity.",
+      "Vector normalises every record into its lane before detection, with the same configuration the AWS pipeline runs.",
   },
   {
     icon: BookOpen,
-    title: "Elasticsearch or Loki",
+    title: "S3, Postgres, Quickwit & Grafana",
     description:
-      "Store alerts in Elasticsearch or Loki. Bundled Grafana dashboards break them down by compliance framework and by service.",
+      "Data is kept in S3 and Postgres (TimescaleDB), with alerts in their own table. Search every log in Quickwit and view it in Grafana dashboards.",
   },
 ];
 
@@ -250,22 +250,22 @@ const comparison = [
   },
   {
     label: "Input",
-    kubernetes: "Container logs and Kubernetes audit events",
+    kubernetes: "SaaS audit logs, pulled by the ingester onto NATS JetStream",
     aws: "CloudTrail, VPC flow, DNS, ALB, GitHub, Slack, 1Password, Google Workspace, GCP, Cloudflare",
   },
   {
     label: "Rules",
-    kubernetes: "Samma YAML, compliance-mapped",
+    kubernetes: "Sigma, with a test per rule (the same rules as AWS)",
     aws: "Sigma, with a test per rule",
   },
   {
     label: "Alerts",
-    kubernetes: "NATS → Elasticsearch or Loki → Grafana",
+    kubernetes: "Own NATS stream → Postgres table → Slack → GitHub issues",
     aws: "S3 archive → Slack → GitHub issues",
   },
   {
     label: "Search",
-    kubernetes: "Grafana over Elasticsearch or Loki",
+    kubernetes: "Quickwit and Grafana",
     aws: "Quickwit, Athena and Grafana",
   },
   {
@@ -472,9 +472,9 @@ export default function SiemFeaturePage() {
               Choose Your Deployment
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Each SIEM answers a different question. Pick the one that
-              matches where your workloads run. If you run Kubernetes on
-              AWS, run both.
+              One SIEM, two ways to run it. Pick the one that matches
+              where your workloads run. If you run Kubernetes on AWS, you
+              can run both.
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -538,8 +538,9 @@ export default function SiemFeaturePage() {
               Detection Inside Your Cluster
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              A Kubernetes-native rule engine that processes cluster events
-              through a real-time NATS pipeline, with compliance-aware rules.
+              The same pipeline as the AWS SIEM, inside your cluster: the
+              ingester, Vector, Sigma detections per lane and alerts, all
+              connected over NATS JetStream.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
@@ -586,25 +587,27 @@ export default function SiemFeaturePage() {
                 A Kubernetes Rule
               </h3>
               <p className="text-gray-600">
-                Plain YAML: what to match, how severe it is, and where the
-                alert goes.
+                The same Sigma format as the AWS SIEM: what to match and
+                how severe it is.
               </p>
             </div>
             <div className="bg-gray-900 rounded-lg p-6 text-sm font-mono text-gray-300 overflow-x-auto">
-              <pre>{`name: k8s-anonymous-access
-description: Detects anonymous or unauthenticated API requests
-severity: critical
-nats_subject: samma.alerts.k8s.anonymous_access
-compliance:
-  pci_dss: ["10.2.5", "8.1.2"]
-  nist_800_53: ["AC.2", "IA.2"]
-  mitre: ["T1078"]
-match:
-  and:
-    - field: kind
-      equals: Event
-    - field: user.username
-      equals: "system:anonymous"`}</pre>
+              <pre>{`title: Google Workspace Two-Step Verification Disabled
+level: critical
+tags:
+  - attack.defense_evasion
+  - attack.persistence
+logsource:
+  product: workspace
+  service: reports
+detection:
+  selection:
+    source: workspace
+    feed: admin
+    name:
+      - UNENFORCE_STRONG_AUTHENTICATION
+      - TURN_OFF_2_STEP_VERIFICATION
+  condition: selection`}</pre>
             </div>
           </div>
         </div>
@@ -692,9 +695,10 @@ detection:
               How They Fit Together
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              The Kubernetes SIEM watches the cluster. The AWS SIEM watches
-              the account it runs in. Today they run side by side and share
-              no data, so you can adopt either one on its own.
+              Both run the same components and the same Sigma rules. On AWS
+              the parts talk through S3 and SQS; on Kubernetes they talk
+              through NATS JetStream. They share no data, so you can adopt
+              either one on its own.
             </p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
