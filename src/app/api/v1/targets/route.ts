@@ -240,6 +240,19 @@ export async function DELETE(req: NextRequest) {
 
   const { value, id } = body as Record<string, unknown>;
 
+  if (value !== undefined && value !== null && typeof value !== "string") {
+    return NextResponse.json(
+      { error: "Field 'value' must be a string" },
+      { status: 400 }
+    );
+  }
+  if (id !== undefined && id !== null && typeof id !== "string") {
+    return NextResponse.json(
+      { error: "Field 'id' must be a string" },
+      { status: 400 }
+    );
+  }
+
   if (!value && !id) {
     return NextResponse.json(
       { error: "Provide 'value' (target string) or 'id' (target ID)" },

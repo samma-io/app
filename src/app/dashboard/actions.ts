@@ -248,6 +248,7 @@ export async function createOrganisation(name: string) {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
   });
 
   return org;
@@ -273,6 +274,7 @@ export async function setActiveOrgAction(organisationId: string) {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
   });
 }
 
