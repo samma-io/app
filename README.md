@@ -37,6 +37,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `EMAIL_SERVER_PASSWORD` | SMTP password |
 | `EMAIL_FROM` | From address for magic link emails |
 | `OPERATOR_API_URL` | URL of the Kubernetes operator Flask API |
+| `OPERATOR_API_TOKEN` | Bearer token for the operator Flask API — required whenever `OPERATOR_API_URL` is set |
 
 ## Architecture
 
@@ -129,12 +130,19 @@ kubectl create secret generic samma-app-secrets -n samma \
   --from-literal=EMAIL_SERVER_SECURE="false" \
   --from-literal=EMAIL_TLS_REJECT_UNAUTHORIZED="false" \
   --from-literal=SCANNER_DATABASE_URL="postgresql://samma:<timescaledb-password>@timescaledb.samma-io.svc:5432/samma" \
-  --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080"
+  --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080" \
+  --from-literal=OPERATOR_API_TOKEN="<token>"
 ```
 
 Replace `<timescaledb-password>` with the password from the operator chart's TimescaleDB Secret (key `password`), which you set via the chart values `timescaledb.password` or point at with `timescaledb.existingSecret`.
 
 `DATABASE_URL` is injected automatically from the CNPG-generated secret `samma-pg-app`.
+
+### Operator API Token
+
+`OPERATOR_API_TOKEN` is the bearer token the dashboard sends on every request to the operator Flask API (`PUT` / `DELETE /target`). The operator must be configured with the **same token value** — set it on the operator chart via `api.token` (or point `api.existingSecret` at a secret holding it) and on the app via `samma-app-secrets` in **the same rollout**. An app with a token talks to an operator that does not check auth yet; once the operator enforces auth, an app without the token refuses to send any request and target create/delete fails loudly instead of silently failing auth.
+
+The token is stored as a `samma-app-secrets` entry (hand-created in-cluster, not managed by Helm) and injected into the app as an environment variable only — it is never committed to the repository, never logged by the app, and never sent to the client.
 
 ### SMTP
 
