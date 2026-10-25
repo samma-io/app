@@ -37,6 +37,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `EMAIL_SERVER_PASSWORD` | SMTP password |
 | `EMAIL_FROM` | From address for magic link emails |
 | `OPERATOR_API_URL` | URL of the Kubernetes operator Flask API |
+| `OPERATOR_API_TOKEN` | Bearer token sent on every operator API request — shared secret with the operator, server-side only (required whenever `OPERATOR_API_URL` is set) |
 
 ## Architecture
 
@@ -129,12 +130,21 @@ kubectl create secret generic samma-app-secrets -n samma \
   --from-literal=EMAIL_SERVER_SECURE="false" \
   --from-literal=EMAIL_TLS_REJECT_UNAUTHORIZED="false" \
   --from-literal=SCANNER_DATABASE_URL="postgresql://samma:<timescaledb-password>@timescaledb.samma-io.svc:5432/samma" \
-  --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080"
+  --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080" \
+  --from-literal=OPERATOR_API_TOKEN="<operator-api-token>"
 ```
 
 Replace `<timescaledb-password>` with the password from the operator chart's TimescaleDB Secret (key `password`), which you set via the chart values `timescaledb.password` or point at with `timescaledb.existingSecret`.
 
 `DATABASE_URL` is injected automatically from the CNPG-generated secret `samma-pg-app`.
+
+### Operator API Bearer Token
+
+`OPERATOR_API_TOKEN` is the bearer token the app sends on every request to the operator API (`PUT /target` to register scanners, `DELETE /target` to remove them). If `OPERATOR_API_URL` is set without `OPERATOR_API_TOKEN`, target create/delete fails immediately with an error naming the missing variable — the app never sends an unauthenticated request to the operator.
+
+**Coordinated rollout:** the same token value must be deployed on the operator chart (`api.token`, or the secret referenced by `api.existingSecret`) and on the app via `samma-app-secrets` in one rollout. This app change can ship before the operator starts enforcing authentication — an operator that does not check the token ignores the extra header — but once `OPERATOR_API_TOKEN` is required on the app, both sides must carry the same value.
+
+**Storage:** the token lives only in the `OPERATOR_API_TOKEN` env var (from the hand-created `samma-app-secrets` cluster secret) — it is never committed to git, never logged, and never sent to the client (server-only, no `NEXT_PUBLIC_` prefix).
 
 ### SMTP
 
