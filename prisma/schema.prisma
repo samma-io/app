@@ -160,6 +160,7 @@ model ApiToken {
   organisationId String
   name           String    // human-readable label, e.g. "CI pipeline"
   tokenHash      String    @unique // SHA-256(rawToken), hex-encoded
+  readOnly       Boolean   @default(false) // read-only tokens are rejected by write endpoints
   lastUsedAt     DateTime?
   createdAt      DateTime  @default(now())
 

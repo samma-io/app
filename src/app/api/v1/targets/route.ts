@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashToken } from "@/lib/token";
+import { authenticateApiToken, parseLimit } from "@/lib/api-auth";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import { isLocalTarget } from "@/lib/network";
+import { targetSelect } from "@/lib/api-targets";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -15,29 +16,76 @@ async function resolveProfile(orgId: string, profileId: unknown) {
   });
 }
 
-export async function POST(req: NextRequest) {
-  // 1. Extract bearer token
-  const authHeader = req.headers.get("authorization") ?? "";
-  const raw = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
+/**
+ * GET /api/v1/targets?profileId=&q=&type=ip|dns&limit=&cursor=
+ * Lists the organisation's targets, newest first. Cursor-paginated: pass the
+ * returned nextCursor to get the next page.
+ */
+export async function GET(req: NextRequest) {
+  const auth = await authenticateApiToken(req);
+  if (!auth.ok) return auth.response;
+
+  const sp = req.nextUrl.searchParams;
+  const type = sp.get("type");
+  if (type && type !== "ip" && type !== "dns") {
+    return NextResponse.json({ error: "Field 'type' must be 'ip' or 'dns'" }, { status: 400 });
+  }
+  const profileId = sp.get("profileId") || undefined;
+  const q = sp.get("q")?.trim() || undefined;
+  const cursor = sp.get("cursor") || undefined;
+  const limit = parseLimit(sp.get("limit"), 50, 100);
+
+  if (profileId) {
+    const profile = await prisma.profile.findFirst({
+      where: { id: profileId, organisationId: auth.organisationId },
+      select: { id: true },
+    });
+    if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  const where = {
+    profile: { organisationId: auth.organisationId },
+    ...(profileId ? { profileId } : {}),
+    ...(type ? { type: type as "ip" | "dns" } : {}),
+    ...(q
+      ? {
+          OR: [
+            { value: { contains: q, mode: "insensitive" as const } },
+            { label: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  // A cursor from another org simply matches nothing in `where`.
+  const cursorRow = cursor
+    ? await prisma.target.findFirst({ where: { ...where, id: cursor }, select: { id: true } })
     : null;
-
-  if (!raw) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (cursor && !cursorRow) {
+    return NextResponse.json({ error: "Invalid cursor" }, { status: 400 });
   }
 
-  // 2. Hash and look up in DB — indexed lookup
-  const tokenHash = hashToken(raw);
-  const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
+  const rows = await prisma.target.findMany({
+    where,
+    select: targetSelect,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursorRow ? { cursor: { id: cursorRow.id }, skip: 1 } : {}),
+  });
 
-  if (!apiToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const hasMore = rows.length > limit;
+  const targets = hasMore ? rows.slice(0, limit) : rows;
+  return NextResponse.json({
+    targets,
+    nextCursor: hasMore ? targets[targets.length - 1].id : undefined,
+  });
+}
 
-  // 3. Update lastUsedAt (fire-and-forget to keep latency low)
-  prisma.apiToken
-    .update({ where: { id: apiToken.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
+export async function POST(req: NextRequest) {
+  // 1. Authenticate (read-only tokens are rejected for writes)
+  const auth = await authenticateApiToken(req, { write: true });
+  if (!auth.ok) return auth.response;
+  const apiToken = auth.token;
 
   // 4. Parse and validate body
   let body: unknown;
@@ -107,28 +155,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  // 1. Extract bearer token
-  const authHeader = req.headers.get("authorization") ?? "";
-  const raw = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : null;
-
-  if (!raw) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // 2. Hash and look up in DB
-  const tokenHash = hashToken(raw);
-  const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
-
-  if (!apiToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // 3. Update lastUsedAt (fire-and-forget)
-  prisma.apiToken
-    .update({ where: { id: apiToken.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
+  // 1. Authenticate (read-only tokens are rejected for writes)
+  const auth = await authenticateApiToken(req, { write: true });
+  if (!auth.ok) return auth.response;
+  const apiToken = auth.token;
 
   // 4. Parse and validate body
   let body: unknown;
@@ -207,28 +237,10 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  // 1. Extract bearer token
-  const authHeader = req.headers.get("authorization") ?? "";
-  const raw = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : null;
-
-  if (!raw) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // 2. Hash and look up in DB
-  const tokenHash = hashToken(raw);
-  const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
-
-  if (!apiToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // 3. Update lastUsedAt (fire-and-forget)
-  prisma.apiToken
-    .update({ where: { id: apiToken.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
+  // 1. Authenticate (read-only tokens are rejected for writes)
+  const auth = await authenticateApiToken(req, { write: true });
+  if (!auth.ok) return auth.response;
+  const apiToken = auth.token;
 
   // 4. Parse body
   let body: unknown;

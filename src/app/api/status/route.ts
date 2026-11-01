@@ -16,8 +16,8 @@ export async function GET() {
     try {
       const [runsResult, criticalResult, highResult] = await Promise.all([
         db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results`,
-        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE raw->>'severity' = 'critical'`,
-        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE raw->>'severity' = 'high'`,
+        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE upper(raw->>'severity') = 'CRITICAL'`,
+        db.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) AS count FROM scan_results WHERE upper(raw->>'severity') = 'HIGH'`,
       ]);
       scannerRuns = Number(runsResult[0].count);
       critical = Number(criticalResult[0].count);

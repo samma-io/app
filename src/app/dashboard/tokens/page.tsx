@@ -54,6 +54,9 @@ export default async function TokensPage() {
                     Last Used
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-gray-500">
+                    Access
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">
                     Token
                   </th>
                   <th className="px-6 py-3" />
@@ -72,6 +75,17 @@ export default async function TokensPage() {
                       {token.lastUsedAt
                         ? formatDate(token.lastUsedAt.toISOString())
                         : "Never"}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          token.readOnly
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {token.readOnly ? "Read-only" : "Read & write"}
+                      </span>
                     </td>
                     <td className="px-6 py-3">
                       <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
@@ -132,6 +146,17 @@ export default async function TokensPage() {
               <strong>label</strong> — optional human-readable description
             </p>
           </div>
+          <p className="text-sm text-gray-500 pt-2">
+            Read endpoints (work with read-only tokens):{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">GET /api/v1/me</code>,{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">GET /api/v1/targets</code>,{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">GET /api/v1/targets/&lt;id&gt;</code>,{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">GET /api/v1/targets/&lt;id&gt;/results</code>{" "}
+            and{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">GET /api/v1/findings</code>.
+            AI agents can use the same token with the samma MCP server at{" "}
+            <code className="text-xs bg-gray-100 px-1 rounded">https://mcp.samma.io/mcp</code>.
+          </p>
         </CardContent>
       </Card>
     </div>
