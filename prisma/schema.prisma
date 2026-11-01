@@ -8,10 +8,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── NextAuth models ──────────────────────────────────────────────────────────
+// ─── Users ────────────────────────────────────────────────────────────────────
+// Identity comes from Clerk (User.clerkId). Account, Session and
+// VerificationToken are legacy NextAuth tables kept until a cleanup migration.
 
 model User {
   id            String    @id @default(cuid())
+  clerkId       String?   @unique
   name          String?
   email         String    @unique
   emailVerified DateTime?

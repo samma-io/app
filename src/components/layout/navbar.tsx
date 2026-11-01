@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: session } = useSession();
+  const { isSignedIn } = useAuth();
+  const { signOut } = useClerk();
 
   return (
     <nav className="sticky top-0 z-50 bg-samma-navy shadow-lg">
@@ -44,7 +45,7 @@ export default function Navbar() {
 
           {/* Auth */}
           <div className="hidden md:flex items-center gap-3">
-            {session ? (
+            {isSignedIn ? (
               <>
                 <Link
                   href="/dashboard"
@@ -60,7 +61,7 @@ export default function Navbar() {
                 <Button
                   variant="ghost"
                   className="text-gray-200 hover:text-white"
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={() => signOut({ redirectUrl: "/" })}
                 >
                   Sign Out
                 </Button>
@@ -111,7 +112,7 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="pt-3 border-t border-samma-navy-light">
-              {session ? (
+              {isSignedIn ? (
                 <>
                   <Link
                     href="/dashboard"
@@ -121,7 +122,7 @@ export default function Navbar() {
                     Dashboard
                   </Link>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => signOut({ redirectUrl: "/" })}
                     className="block px-4 py-2 text-sm text-gray-200 hover:text-white"
                   >
                     Sign Out

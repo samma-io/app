@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { LayoutDashboard, Target, Key } from "lucide-react";
-import { authOptions } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { getActiveOrg, getUserOrgs } from "@/lib/org";
 import { OrgPickerClient } from "@/components/dashboard/org-picker-client";
 
@@ -18,10 +17,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect("/sign-in");
+  const user = await requireUser();
 
-  const orgs = await getUserOrgs(session.user.id);
+  const orgs = await getUserOrgs(user.id);
   const pathname = (await headers()).get("x-pathname") ?? "";
   if (orgs.length === 0 && pathname !== "/dashboard/org/new") {
     redirect("/dashboard/org/new");

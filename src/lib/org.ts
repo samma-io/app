@@ -1,13 +1,12 @@
 import { cookies } from "next/headers";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const ACTIVE_ORG_COOKIE = "active-org-id";
 
 export async function getActiveOrg() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
 
   const cookieStore = await cookies();
   const orgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
@@ -16,7 +15,7 @@ export async function getActiveOrg() {
     const membership = await prisma.orgMembership.findUnique({
       where: {
         userId_organisationId: {
-          userId: session.user.id,
+          userId: user.id,
           organisationId: orgId,
         },
       },
@@ -26,7 +25,7 @@ export async function getActiveOrg() {
   }
 
   // Auto-select when user has exactly one org (no cookie needed)
-  const orgs = await getUserOrgs(session.user.id);
+  const orgs = await getUserOrgs(user.id);
   if (orgs.length === 1) return orgs[0];
 
   return null;
@@ -42,8 +41,8 @@ export async function getUserOrgs(userId: string) {
 }
 
 export async function requireOrgRole(allowedRoles: string[]) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
 
   const cookieStore = await cookies();
   const orgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
@@ -52,7 +51,7 @@ export async function requireOrgRole(allowedRoles: string[]) {
   const membership = await prisma.orgMembership.findUnique({
     where: {
       userId_organisationId: {
-        userId: session.user.id,
+        userId: user.id,
         organisationId: orgId,
       },
     },
