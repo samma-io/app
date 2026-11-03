@@ -1,9 +1,8 @@
 "use server";
 
-import { getServerSession } from "next-auth";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
+import { getCurrentUser, requireUserForAction } from "@/lib/auth";
 import { getActiveOrg, getUserOrgs, ACTIVE_ORG_COOKIE } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
@@ -227,14 +226,13 @@ export async function revokeToken(tokenId: string) {
 // ─── Organisations ────────────────────────────────────────────────────────────
 
 export async function createOrganisation(name: string) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const user = await requireUserForAction();
 
   const org = await prisma.organisation.create({
     data: {
       name,
       members: {
-        create: { userId: session.user.id, role: "OWNER" },
+        create: { userId: user.id, role: "OWNER" },
       },
       profiles: {
         create: { name: "Default", type: "SMALL", isDefault: true },
@@ -255,14 +253,13 @@ export async function createOrganisation(name: string) {
 }
 
 export async function setActiveOrgAction(organisationId: string) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const user = await requireUserForAction();
 
   // Validate membership
   const membership = await prisma.orgMembership.findUnique({
     where: {
       userId_organisationId: {
-        userId: session.user.id,
+        userId: user.id,
         organisationId,
       },
     },
@@ -279,7 +276,7 @@ export async function setActiveOrgAction(organisationId: string) {
 }
 
 export async function getCurrentUserOrgs() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return [];
-  return getUserOrgs(session.user.id);
+  const user = await getCurrentUser();
+  if (!user) return [];
+  return getUserOrgs(user.id);
 }
