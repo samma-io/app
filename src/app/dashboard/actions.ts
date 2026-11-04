@@ -195,14 +195,14 @@ export async function undeployTarget(targetId: string, profileId: string) {
 
 // ─── API Tokens ───────────────────────────────────────────────────────────────
 
-export async function createToken(name: string): Promise<{ raw: string }> {
+export async function createToken(name: string, readOnly = false): Promise<{ raw: string }> {
   const org = await getActiveOrg();
   if (!org) throw new Error("No active organization");
 
   const { raw, hash } = generateToken();
 
   await prisma.apiToken.create({
-    data: { organisationId: org.id, name, tokenHash: hash },
+    data: { organisationId: org.id, name, tokenHash: hash, readOnly },
   });
 
   revalidatePath("/dashboard/tokens");

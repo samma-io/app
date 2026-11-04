@@ -12,6 +12,7 @@ export function CreateTokenForm() {
   const [error, setError] = useState<string | null>(null);
   const [rawToken, setRawToken] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [readOnly, setReadOnly] = useState(true);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +22,7 @@ export function CreateTokenForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const { raw } = await createToken(name);
+        const { raw } = await createToken(name, readOnly);
         setRawToken(raw);
         setOpen(false);
       } catch {
@@ -79,6 +80,15 @@ export function CreateTokenForm() {
         className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-samma-navy min-w-[240px]"
         disabled={isPending}
       />
+      <label className="flex items-center gap-1.5 text-sm text-gray-700 whitespace-nowrap">
+        <input
+          type="checkbox"
+          checked={readOnly}
+          onChange={(e) => setReadOnly(e.target.checked)}
+          disabled={isPending}
+        />
+        Read-only
+      </label>
       <Button type="submit" variant="primary" size="sm" disabled={isPending}>
         {isPending ? "Generating…" : "Generate"}
       </Button>
