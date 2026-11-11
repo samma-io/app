@@ -29,13 +29,9 @@ Copy `.env.example` to `.env` and fill in the values:
 |---|---|
 | `DATABASE_URL` | Main PostgreSQL connection string |
 | `SCANNER_DATABASE_URL` | Scanner results TimescaleDB connection string |
-| `NEXTAUTH_URL` | Public URL of the app |
-| `NEXTAUTH_SECRET` | Random secret for session signing |
-| `EMAIL_SERVER_HOST` | SMTP host for magic link emails |
-| `EMAIL_SERVER_PORT` | SMTP port |
-| `EMAIL_SERVER_USER` | SMTP username |
-| `EMAIL_SERVER_PASSWORD` | SMTP password |
-| `EMAIL_FROM` | From address for magic link emails |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key — public, **inlined at build time** (Docker build arg / CI repo variable) |
+| `CLERK_SECRET_KEY` | Clerk secret key — server-side runtime secret |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` / `_SIGN_UP_URL` | `/sign-in` / `/sign-up` (defaults baked into the Docker image) |
 | `OPERATOR_API_URL` | URL of the Kubernetes operator Flask API |
 | `OPERATOR_API_TOKEN` | Bearer token for the operator Flask API — required whenever `OPERATOR_API_URL` is set |
 
@@ -46,7 +42,7 @@ Copy `.env.example` to `.env` and fill in the values:
 - **Next.js 16** — App Router, React Server Components
 - **React 19** — TypeScript strict mode
 - **Tailwind CSS 4** — PostCSS plugin
-- **NextAuth v4** — Email magic link authentication, PrismaAdapter
+- **Clerk** (`@clerk/nextjs`) — authentication; local `User` rows linked via `clerkId`
 - **Prisma ORM** — PostgreSQL (main DB) + TimescaleDB (scanner results)
 - **lucide-react** — Icons
 
@@ -55,7 +51,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | Route | Description |
 |---|---|
 | `/` | Marketing landing page |
-| `/sign-in` | Magic link sign-in |
+| `/sign-in`, `/sign-up` | Clerk sign-in / sign-up |
 | `/dashboard` | Main dashboard |
 | `/dashboard/profiles` | Scan profiles list |
 | `/dashboard/profiles/[id]` | Profile detail — targets table |
@@ -81,7 +77,7 @@ The join key between the two databases is `Target.id` (Samma DB) = `scan_results
 
 | File | Description |
 |---|---|
-| `src/lib/auth.ts` | NextAuth config |
+| `src/lib/auth.ts` | `getCurrentUser()` — maps the Clerk session to the local `User` (provisions/links on first sign-in) |
 | `src/lib/org.ts` | Organisation helpers (`getActiveOrg`) |
 | `src/lib/operator.ts` | Operator API integration |
 | `src/lib/scanner-db.ts` | Lazy Prisma client for scanner TimescaleDB |
@@ -120,15 +116,7 @@ Must be created manually (not managed by Helm):
 
 ```bash
 kubectl create secret generic samma-app-secrets -n samma \
-  --from-literal=NEXTAUTH_URL="https://samma.io" \
-  --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
-  --from-literal=EMAIL_SERVER_HOST="postfix-internal.hrb.svc" \
-  --from-literal=EMAIL_SERVER_PORT="25" \
-  --from-literal=EMAIL_SERVER_USER="mahe@hacking.robots.beer" \
-  --from-literal=EMAIL_SERVER_PASSWORD="<password>" \
-  --from-literal=EMAIL_FROM="Samma.io <noreply@samma.io>" \
-  --from-literal=EMAIL_SERVER_SECURE="false" \
-  --from-literal=EMAIL_TLS_REJECT_UNAUTHORIZED="false" \
+  --from-literal=CLERK_SECRET_KEY="<clerk-secret-key>" \
   --from-literal=SCANNER_DATABASE_URL="postgresql://samma:<timescaledb-password>@timescaledb.samma-io.svc:5432/samma" \
   --from-literal=OPERATOR_API_URL="http://api.samma-io.svc:8080" \
   --from-literal=OPERATOR_API_TOKEN="<token>"
@@ -144,9 +132,12 @@ Replace `<timescaledb-password>` with the password from the operator chart's Tim
 
 The token is stored as a `samma-app-secrets` entry (hand-created in-cluster, not managed by Helm) and injected into the app as an environment variable only — it is never committed to the repository, never logged by the app, and never sent to the client.
 
-### SMTP
+### Clerk
 
-`EMAIL_SERVER_SECURE` and `EMAIL_TLS_REJECT_UNAUTHORIZED` control TLS behaviour at runtime via the secret — no code change needed to switch relay settings.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` must be set as a GitHub **repository variable** (Settings → Secrets and variables → Actions → Variables). Docker Publish passes it as a build arg and CI uses it for `npm run build`; it is public, not a secret.
+- `CLERK_SECRET_KEY` goes in `samma-app-secrets` (runtime only).
+- In the Clerk dashboard, add the production domain (`samma.io`) and enable the sign-in methods you want (email code / magic link, optionally Google/GitHub).
+- Existing users are linked to their Clerk account automatically on first sign-in by **verified** email, keeping their organisations.
 
 ### CloudNativePG — Known Gotchas
 

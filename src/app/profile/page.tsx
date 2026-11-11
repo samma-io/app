@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
 
-  if (status === "loading") {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-samma-navy border-t-transparent rounded-full" />
@@ -23,8 +23,8 @@ export default function ProfilePage() {
     );
   }
 
-  const email = session?.user?.email;
-  const name = session?.user?.name;
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const name = user?.fullName;
 
   return (
     <div className="bg-gray-50 min-h-screen">

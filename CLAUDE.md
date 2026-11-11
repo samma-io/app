@@ -34,7 +34,7 @@ docker compose down
 - **Next.js 16** with App Router (file-based routing)
 - **React 19** with TypeScript (strict mode)
 - **Tailwind CSS 4** via PostCSS plugin
-- **NextAuth v4** for authentication (email magic links via SMTP, PrismaAdapter)
+- **Clerk** (`@clerk/nextjs`) for authentication
 - **Prisma ORM** — two clients: main PostgreSQL + scanner TimescaleDB
 - **class-variance-authority (CVA)** for component variants
 - **lucide-react** for icons
@@ -46,7 +46,7 @@ docker compose down
 All routes use the Next.js App Router under `src/app/`. Key routes:
 
 - `/` — Marketing/hero landing page
-- `/sign-in` — Magic link email form (NextAuth)
+- `/sign-in`, `/sign-up` — Clerk sign-in / sign-up
 - `/dashboard` — Main dashboard (protected)
 - `/dashboard/profiles` — Scan profiles list
 - `/dashboard/profiles/[id]` — Profile detail with targets table
@@ -54,16 +54,18 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/dashboard/tokens` — API token management
 - `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
 
-### Auth (NextAuth — Magic Links)
+### Auth (Clerk)
 
-NextAuth v4 with PrismaAdapter. Users sign in via email magic links (SMTP required). First sign-in auto-creates the user record.
+Clerk (`@clerk/nextjs`) handles identity. The local Prisma `User` row (linked by `User.clerkId`) remains the anchor for org memberships, so the rest of the data model is unchanged.
 
-- `src/lib/auth.ts` — NextAuth config (EmailProvider, session callback, signIn event auto-creates org from `pendingOrgName`)
-- `src/app/api/auth/[...nextauth]/route.ts` — NextAuth App Router handler
+- `src/lib/auth.ts` — `getCurrentUser()` (cached per request) maps the Clerk session to the local `User`. On first sign-in it links an existing user by **verified** email (pre-Clerk accounts keep their orgs) or creates a new one. `requireUser()` (pages: redirects to `/sign-in`) and `requireUserForAction()` (server actions: throws).
+- `src/middleware.ts` — `clerkMiddleware`; `auth.protect()` on `/dashboard(.*)` and `/profile(.*)`; injects `x-pathname` header. `/api/v1/*` is not protected by Clerk — it uses API tokens.
+- `src/app/sign-in/[[...sign-in]]`, `src/app/sign-up/[[...sign-up]]` — Clerk `<SignIn />` / `<SignUp />`
+- Client components use `useAuth()` / `useUser()` / `useClerk().signOut()` from `@clerk/nextjs`; `<ClerkProvider>` wraps the root layout.
 - `src/lib/org.ts` — `getActiveOrg()` reads `active-org-id` cookie; `getUserOrgs()` lists memberships
-- `src/middleware.ts` — Cookie-presence check protects `/dashboard` and `/profile` routes; injects `x-pathname` header
-- Sign-in flow: `/sign-in` → check if new user → `/onboarding` (new) or magic link (existing) → session → `/dashboard`
 - First sign-in: no orgs → redirect `/dashboard/org/new` → create org → dashboard
+- Env: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (build-time, Docker build arg), `CLERK_SECRET_KEY` (runtime). See `.env.example`.
+- Never call `auth()`/`currentUser()` directly for app authorisation — go through `getCurrentUser()` so the local user id is used.
 
 ### Data Layer
 
