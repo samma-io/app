@@ -74,7 +74,7 @@ const features = [
     icon: FileText,
     title: "Own Your Security Data",
     description:
-      "Connect your cloud and SaaS sources, detect with Sigma rules per source, and alert to Slack and GitHub. Share only what you choose with external SIEMs.",
+      "Own your log flow: connect cloud, SaaS and endpoints, choose what you share with partners and anonymise it, and get alerts in Slack and GitHub. Run it on AWS, or on Kubernetes with Ankra.",
   },
   {
     icon: Radio,
@@ -146,7 +146,7 @@ const steps = [
     icon: Bell,
     title: "Analyze & Alert",
     description:
-      "Findings land in your Samma dashboard. Own your log flow with the Samma SIEM: connect your sources, detect per source, and alert where your team works.",
+      "Findings land in your Samma dashboard. Own your log flow with the Samma SIEM: connect your sources, detect per source, pull in your partners' alerts, and alert where your team works.",
   },
 ];
 

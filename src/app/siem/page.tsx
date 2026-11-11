@@ -17,9 +17,12 @@ import {
   Boxes,
   Plug,
   Share2,
-  Split,
+  ListChecks,
   EyeOff,
   Server,
+  Coins,
+  Handshake,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GITHUB_ORG_URL, GUIDE_LINKS, GUIDE_URL } from "@/lib/constants";
@@ -29,7 +32,7 @@ const dataFlow = [
     icon: Plug,
     title: "Connect",
     description:
-      "The ingester connects to AWS, GCP, GitHub, 1Password, Slack, Google Workspace, Cloudflare, with more sources coming.",
+      "Pull audit logs from your cloud and SaaS accounts, ship endpoint logs with the Wazuh 5 agent or osquery, and send anything else to a simple webhook.",
   },
   {
     icon: Filter,
@@ -51,65 +54,86 @@ const dataFlow = [
   {
     icon: Bell,
     title: "React",
-    description: "Alerts are delivered to Slack and GitHub, where your team works.",
+    description:
+      "Alerts go to Slack, and the ones that need work become GitHub issues.",
   },
 ];
 
-const sources = [
-  "AWS CloudTrail",
-  "VPC Flow Logs",
-  "Route 53 DNS",
-  "ALB",
-  "GitHub",
-  "GCP",
-  "Google Workspace",
-  "1Password",
-  "Slack",
-  "Cloudflare",
+const sourceGroups = [
+  {
+    label: "Cloud & SaaS",
+    items: [
+      "AWS CloudTrail",
+      "VPC Flow Logs",
+      "Route 53 DNS",
+      "ALB",
+      "GitHub",
+      "GCP",
+      "Google Workspace",
+      "1Password",
+      "Slack",
+      "Cloudflare",
+    ],
+  },
+  {
+    label: "Endpoints",
+    items: ["Wazuh 5 agent", "osquery"],
+  },
+  {
+    label: "Anything else",
+    items: ["Webhook"],
+  },
 ];
 
 const sharing = [
   {
-    icon: Share2,
-    title: "Connect External SIEMs",
+    icon: ListChecks,
+    title: "Pick Your Events",
     description:
-      "Forward your logs to one or several external SIEM providers and get their alerts back.",
-  },
-  {
-    icon: Split,
-    title: "Why Only One?",
-    description:
-      "Split the same stream to several providers and let them all alert on it.",
-  },
-  {
-    icon: Filter,
-    title: "Filter Before You Share",
-    description:
-      "Why send all your data to an external SIEM? Choose exactly which data leaves your pipeline.",
+      "Choose exactly which log events leave your pipeline. Everything else stays with you.",
   },
   {
     icon: EyeOff,
-    title: "Anonymise",
+    title: "Anonymise Before It Leaves",
     description:
-      "Replace sensitive values before they are shared, for example swap the CEO's name for an alias.",
+      "Don't send your CEO's email audit to anyone. Swap sensitive values for aliases so no data leaks.",
+  },
+  {
+    icon: Share2,
+    title: "One Partner, Many, or None",
+    description:
+      "Send selected events to one detection partner or several and get their alerts back, or keep it all in-house.",
+  },
+  {
+    icon: Bell,
+    title: "Alerts Where You Work",
+    description:
+      "Your own detections and your partners' alerts land in Slack, and become tickets as GitHub issues.",
   },
 ];
 
-const platforms = [
+const platforms: {
+  icon: typeof Cloud;
+  name: string;
+  description: string;
+  href?: string;
+}[] = [
   {
     icon: Cloud,
     name: "AWS",
-    description: "Deploys with Terraform into your own account. Cheap to run.",
+    description: "Deploys with Terraform into your own AWS account.",
   },
   {
-    icon: Cloud,
-    name: "GCP",
-    description: "Runs in your Google Cloud project. Easy to deploy.",
+    icon: Container,
+    name: "Kubernetes with Ankra",
+    description:
+      "A managed Kubernetes deployment with Ankra, without the headache.",
+    href: "https://ankra.io",
   },
   {
     icon: Server,
-    name: "On-prem Kubernetes",
-    description: "Runs in your own cluster, next to your workloads.",
+    name: "Your Own Kubernetes",
+    description: "Install with Helm in your own cluster, next to your workloads.",
   },
 ];
 
@@ -122,7 +146,8 @@ const deployments = [
     description:
       "The same ingester, Vector, detection engine and Sigma rules as the AWS SIEM, running next to your workloads. The parts talk over NATS JetStream instead of S3 and SQS.",
     points: [
-      "Runs in any Kubernetes cluster",
+      "Runs in any Kubernetes cluster, or deploy it with Ankra",
+      "Endpoints via the Wazuh 5 agent, osquery or a webhook",
       "The same Sigma rules as the AWS SIEM, each with tests",
       "Alerts to Slack and GitHub issues",
       "Search in Quickwit, with Grafana dashboards",
@@ -246,12 +271,17 @@ const comparison = [
   {
     label: "Runs on",
     kubernetes: "Any Kubernetes cluster",
-    aws: "Your AWS account (S3, SQS, ECS Fargate, Lambda), GCP or on-prem Kubernetes",
+    aws: "Your AWS account (S3, SQS, ECS Fargate, Lambda)",
   },
   {
     label: "Input",
     kubernetes: "SaaS audit logs, pulled by the ingester onto NATS JetStream",
     aws: "CloudTrail, VPC flow, DNS, ALB, GitHub, Slack, 1Password, Google Workspace, GCP, Cloudflare",
+  },
+  {
+    label: "Endpoints",
+    kubernetes: "Wazuh 5 agent, osquery, or any client over a webhook",
+    aws: "—",
   },
   {
     label: "Rules",
@@ -270,7 +300,7 @@ const comparison = [
   },
   {
     label: "Install",
-    kubernetes: "Helm charts and manifests",
+    kubernetes: "Helm charts, or a managed deploy with Ankra",
     aws: "Terraform",
   },
 ];
@@ -308,9 +338,9 @@ export default function SiemFeaturePage() {
               <span className="text-samma-gold">Own Your Detection.</span>
             </h1>
             <p className="text-lg text-gray-300 mb-10 leading-relaxed">
-              When you own your flow of logs, you control your security
-              actions. That used to be hard. Today it is easy to deploy and
-              cheap to run, on AWS, GCP or on-prem Kubernetes.
+              Own your flow of logs. You decide what is collected, where it
+              is stored and who gets to see it, and you get the right alerts.
+              Deploy it in your own AWS account, or on Kubernetes with Ankra.
             </p>
             <div className="flex flex-wrap gap-4">
               <a href="#own-your-data">
@@ -385,21 +415,32 @@ export default function SiemFeaturePage() {
       {/* Sources */}
       <section className="py-16 bg-samma-lavender">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">
-            Connect Your Sources
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
+            Connect Everything
           </h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            {sources.map((src) => (
-              <span
-                key={src}
-                className="rounded-full border border-samma-navy/20 bg-white px-4 py-2 text-sm font-medium text-samma-navy"
-              >
-                {src}
-              </span>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-10">
+            Cloud accounts, SaaS audit logs and endpoints all flow into the
+            same pipeline. If a client can send HTTP, it can send to the
+            webhook.
+          </p>
+          <div className="space-y-8">
+            {sourceGroups.map((group) => (
+              <div key={group.label}>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-samma-navy mb-3">
+                  {group.label}
+                </h3>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {group.items.map((src) => (
+                    <span
+                      key={src}
+                      className="rounded-full border border-samma-navy/20 bg-white px-4 py-2 text-sm font-medium text-samma-navy"
+                    >
+                      {src}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
-            <span className="rounded-full border border-dashed border-samma-navy/40 px-4 py-2 text-sm font-medium text-samma-navy">
-              + more coming
-            </span>
           </div>
         </div>
       </section>
@@ -409,10 +450,12 @@ export default function SiemFeaturePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Share on Your Terms
+              Your Data, Your Rules
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              When you control the flow, you choose who else sees it.
+              When you own the flow, you have full control of your logs and
+              your alerts. You choose what is shared, with whom, and what it
+              looks like when it leaves.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -442,7 +485,8 @@ export default function SiemFeaturePage() {
               Run It Anywhere
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Easy to deploy and cheap to run, wherever your workloads live.
+              Host and control your own data flow without the headache,
+              wherever your workloads live.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -458,9 +502,35 @@ export default function SiemFeaturePage() {
                 <p className="text-gray-600 text-sm leading-relaxed">
                   {p.description}
                 </p>
+                {p.href && (
+                  <a
+                    href={p.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-samma-navy hover:underline"
+                  >
+                    ankra.io
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* No extra fees */}
+      <section className="py-16 bg-samma-navy">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+          <Coins className="h-10 w-10 text-samma-gold mx-auto mb-4" />
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            No Extra Fees
+          </h2>
+          <p className="text-lg text-gray-300 leading-relaxed">
+            It is your account, so the storage is yours. No extra fee for
+            ingest, transfer or storage, no per-GB markup. You pay your own
+            cloud bill, at a price that is reasonable.
+          </p>
         </div>
       </section>
 
@@ -677,11 +747,6 @@ detection:
       - PutEventSelectors
   condition: selection`}</pre>
             </div>
-            <p className="mt-6 text-sm text-gray-500 text-center">
-              The AWS SIEM is pre-release: there are no published images
-              yet, so you build them yourself. The deploy guide walks
-              through it.
-            </p>
           </div>
         </div>
       </section>
@@ -734,15 +799,37 @@ detection:
       <section className="bg-gradient-to-br from-samma-navy to-samma-navy-dark py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-2xl sm:text-3xl font-bold text-white leading-snug mb-6">
-            You can&apos;t choose whether you get hacked. You can choose{" "}
+            Today there is no excuse not to build detection rules for your
+            own environment,{" "}
             <span className="text-samma-gold">
-              how fast you detect it and how you react.
+              and no excuse not to run it yourself.
             </span>
           </p>
           <p className="text-lg text-gray-300">
-            It&apos;s time to take detection seriously. Owning your flow of
-            logs is where it starts.
+            You can&apos;t choose whether you get hacked. You can choose how
+            fast you detect it and how you react. You control the data, you
+            control the storage, you get the right alerts.
           </p>
+        </div>
+      </section>
+
+      {/* Partners */}
+      <section className="py-16 bg-samma-lavender">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+          <Handshake className="h-10 w-10 text-samma-navy mx-auto mb-4" />
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
+            Get Started With a Partner
+          </h2>
+          <p className="text-lg text-gray-600 leading-relaxed mb-8">
+            Want help getting your log flow running? Our partners can help
+            you deploy, connect your sources and write your first rules.
+          </p>
+          <a href={GITHUB_ORG_URL} target="_blank" rel="noopener noreferrer">
+            <Button variant="primary" size="lg">
+              <Handshake className="mr-2 h-5 w-5" />
+              Get in Touch
+            </Button>
+          </a>
         </div>
       </section>
 
