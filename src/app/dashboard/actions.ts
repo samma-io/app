@@ -224,6 +224,24 @@ export async function revokeToken(tokenId: string) {
   revalidatePath("/dashboard/tokens");
 }
 
+// ─── Clusters ─────────────────────────────────────────────────────────────────
+
+// Forget a connected cluster. Its targets stay, without a cluster. A cluster
+// that still calls the API with its name comes back on its next call.
+export async function removeCluster(clusterId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const cluster = await prisma.cluster.findFirst({
+    where: { id: clusterId, organisationId: org.id },
+  });
+  if (!cluster) throw new Error("Cluster not found");
+
+  await prisma.cluster.delete({ where: { id: cluster.id } });
+
+  revalidatePath("/dashboard/clusters");
+}
+
 // ─── Organisations ────────────────────────────────────────────────────────────
 
 export async function createOrganisation(name: string) {

@@ -19,7 +19,10 @@ export default async function DashboardPage() {
     }),
     prisma.target.findMany({
       where: { profile: { organisationId: org.id } },
-      include: { profile: { select: { name: true } } },
+      include: {
+        profile: { select: { name: true } },
+        cluster: { select: { name: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
@@ -112,6 +115,9 @@ export default async function DashboardPage() {
                     Profile
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-gray-500">
+                    Cluster
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">
                     Added
                   </th>
                 </tr>
@@ -140,6 +146,9 @@ export default async function DashboardPage() {
                     </td>
                     <td className="px-6 py-3 text-gray-600">
                       {target.profile.name}
+                    </td>
+                    <td className="px-6 py-3 text-gray-500 font-mono">
+                      {target.cluster?.name ?? "—"}
                     </td>
                     <td className="px-6 py-3 text-gray-400">
                       {formatDate(target.createdAt.toISOString())}

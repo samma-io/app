@@ -70,6 +70,7 @@ model Organisation {
   members   OrgMembership[]
   profiles  Profile[]
   apiTokens ApiToken[]
+  clusters  Cluster[]
 }
 
 enum OrgRole {
@@ -146,9 +147,32 @@ model Target {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  clusterId          String?            // the cluster whose operator added it (X-Samma-Cluster)
+
+  profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
 
   @@index([profileId])
+  @@index([clusterId])
+}
+
+// ─── Clusters ────────────────────────────────────────────────────────────────
+
+// A Kubernetes cluster running the samma operator or collector. It is created
+// and kept alive by API calls that carry `X-Samma-Cluster: <name>`; its status
+// (Ready/Down) is derived from lastSeenAt when read (src/lib/clusters.ts).
+model Cluster {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  version        String?  // X-Samma-Version of the last call
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  targets      Target[]
+
+  @@unique([organisationId, name])
 }
 
 // ─── API Tokens ───────────────────────────────────────────────────────────────

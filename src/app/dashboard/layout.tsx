@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { LayoutDashboard, Target, Key } from "lucide-react";
+import { LayoutDashboard, Target, Server, Key } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { getActiveOrg, getUserOrgs } from "@/lib/org";
 import { OrgPickerClient } from "@/components/dashboard/org-picker-client";
@@ -10,6 +10,7 @@ import { OrgPickerClient } from "@/components/dashboard/org-picker-client";
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/profiles", label: "Profiles", icon: Target },
+  { href: "/dashboard/clusters", label: "Clusters", icon: Server },
   { href: "/dashboard/tokens", label: "API Tokens", icon: Key },
 ];
 

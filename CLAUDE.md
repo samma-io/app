@@ -51,6 +51,7 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/dashboard/profiles` — Scan profiles list
 - `/dashboard/profiles/[id]` — Profile detail with targets table
 - `/dashboard/profiles/[id]/targets/[targetId]` — Target detail + scan results from TimescaleDB
+- `/dashboard/clusters` — Connected clusters: name, Ready/Down (seen in the last 15 min), version, target count
 - `/dashboard/tokens` — API token management
 - `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
 
@@ -96,7 +97,11 @@ Payload sent to operator:
 
 Profile mapping: `SMALL` → `"detect"`, `FULL` → `"all"`.
 
-### Target Status Fields
+#### Connected clusters
+
+An `/api/v1` call carrying `X-Samma-Cluster: <name>` (and optionally `X-Samma-Version`) upserts a `Cluster` (`organisationId`, `name` unique) and moves its `lastSeenAt`. `authenticateApiToken` does this for every token, read-only included, and hands routes `clusterId` (a promise). POST/PUT `/api/v1/targets` store it on new targets, and PUT claims an existing target that has none. Status is derived on read: `clusterStatus()` in `src/lib/clusters.ts` (Ready within `READY_WINDOW_MS`, 15 min). The operator and collector send the header when the Helm chart's `clusterName` is set. An invalid name is ignored.
+
+## Target Status Fields
 
 `Target` model has two status fields:
 - `scannerStatus: ScannerStatus` — `READY_TO_DEPLOY` | `DEPLOYED`
