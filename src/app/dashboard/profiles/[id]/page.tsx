@@ -23,7 +23,10 @@ export default async function ProfileDetailPage({ params }: Props) {
   const profile = await prisma.profile.findFirst({
     where: { id, organisationId: org.id },
     include: {
-      targets: { orderBy: { createdAt: "desc" } },
+      targets: {
+        orderBy: { createdAt: "desc" },
+        include: { cluster: { select: { name: true } } },
+      },
     },
   });
 
@@ -78,6 +81,9 @@ export default async function ProfileDetailPage({ params }: Props) {
                     Label
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-gray-500">
+                    Cluster
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">
                     Added
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-gray-500">
@@ -116,6 +122,9 @@ export default async function ProfileDetailPage({ params }: Props) {
                     </td>
                     <td className="px-6 py-3 text-gray-500">
                       {target.label ?? "—"}
+                    </td>
+                    <td className="px-6 py-3 text-gray-500 font-mono">
+                      {target.cluster?.name ?? "—"}
                     </td>
                     <td className="px-6 py-3 text-gray-400">
                       {formatDate(target.createdAt.toISOString())}

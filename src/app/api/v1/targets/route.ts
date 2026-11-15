@@ -134,6 +134,7 @@ export async function POST(req: NextRequest) {
       type,
       label: label && typeof label === "string" ? label : null,
       scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+      clusterId: await auth.clusterId,
     },
   });
 
@@ -203,6 +204,12 @@ export async function PUT(req: NextRequest) {
   });
 
   if (existing) {
+    // The first cluster to add a target keeps it; an unlabelled one is claimed.
+    const clusterId = await auth.clusterId;
+    if (clusterId && !existing.clusterId) {
+      const claimed = await prisma.target.update({ where: { id: existing.id }, data: { clusterId } });
+      return NextResponse.json(claimed, { status: 202 });
+    }
     return NextResponse.json(existing, { status: 202 });
   }
 
@@ -216,6 +223,7 @@ export async function PUT(req: NextRequest) {
       type,
       label: label && typeof label === "string" ? label : null,
       scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+      clusterId: await auth.clusterId,
     },
   });
 

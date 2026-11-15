@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ApiToken } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
+import { clusterClaim, touchCluster } from "@/lib/clusters";
 
 export type ApiAuth =
-  | { ok: true; token: ApiToken; organisationId: string }
+  | {
+      ok: true;
+      token: ApiToken;
+      organisationId: string;
+      /** Id of the cluster named by X-Samma-Cluster, or null. Started for every call, awaited only by routes that store it. */
+      clusterId: Promise<string | null>;
+    }
   | { ok: false; response: NextResponse };
 
 /**
@@ -42,7 +49,17 @@ export async function authenticateApiToken(
     .update({ where: { id: token.id }, data: { lastUsedAt: new Date() } })
     .catch(() => {});
 
-  return { ok: true, token, organisationId: token.organisationId };
+  // A cluster heartbeat is allowed for read-only tokens too: it only records
+  // that the token's own cluster is alive (src/lib/clusters.ts).
+  const claim = clusterClaim(req);
+  const clusterId = claim
+    ? touchCluster(token.organisationId, claim.name, claim.version).catch((err) => {
+        console.error("[clusters] heartbeat failed:", err);
+        return null;
+      })
+    : Promise.resolve(null);
+
+  return { ok: true, token, organisationId: token.organisationId, clusterId };
 }
 
 /** Parse a positive integer query param, clamped to [1, max]. */

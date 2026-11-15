@@ -11,6 +11,7 @@ export const targetSelect = {
   reachabilityStatus: true,
   createdAt: true,
   profile: { select: { id: true, name: true, type: true } },
+  cluster: { select: { id: true, name: true } },
 } satisfies Prisma.TargetSelect;
 
 export type ApiTarget = Prisma.TargetGetPayload<{ select: typeof targetSelect }>;
