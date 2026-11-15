@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import { isLocalTarget } from "@/lib/network";
+import { checkReachability } from "@/lib/reachability";
 import type { ProfileType } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
@@ -76,6 +77,8 @@ export async function addTarget(
   if (!profile) throw new Error("Profile not found");
 
   const local = await isLocalTarget(value, type);
+  // Can samma.io reach it from outside? Its port, or 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type, port);
 
   const target = await prisma.target.create({
     data: {
@@ -85,6 +88,7 @@ export async function addTarget(
       label: label ?? null,
       port: port ?? null,
       scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+      reachabilityStatus,
     },
   });
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateApiToken, parseLimit } from "@/lib/api-auth";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import { isLocalTarget } from "@/lib/network";
+import { checkReachability } from "@/lib/reachability";
 import { targetSelect } from "@/lib/api-targets";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
@@ -126,6 +127,8 @@ export async function POST(req: NextRequest) {
 
   // 6. Create the target
   const local = await isLocalTarget(value, type as "ip" | "dns");
+  // Can samma.io reach it from outside? 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type as "ip" | "dns");
 
   const target = await prisma.target.create({
     data: {
@@ -134,6 +137,7 @@ export async function POST(req: NextRequest) {
       type,
       label: label && typeof label === "string" ? label : null,
       scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+      reachabilityStatus,
       clusterId: await auth.clusterId,
     },
   });
@@ -215,6 +219,8 @@ export async function PUT(req: NextRequest) {
 
   // 7. Create new target
   const local = await isLocalTarget(value, type as "ip" | "dns");
+  // Can samma.io reach it from outside? 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type as "ip" | "dns");
 
   const target = await prisma.target.create({
     data: {
@@ -223,6 +229,7 @@ export async function PUT(req: NextRequest) {
       type,
       label: label && typeof label === "string" ? label : null,
       scannerStatus: local ? "LOCAL" : "READY_TO_DEPLOY",
+      reachabilityStatus,
       clusterId: await auth.clusterId,
     },
   });
