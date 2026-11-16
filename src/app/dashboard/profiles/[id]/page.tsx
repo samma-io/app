@@ -9,6 +9,7 @@ import { TargetScannerButtons } from "@/components/dashboard/target-scanner-butt
 import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
+import { LOCAL_TARGET_HINT, reachabilityLabel, scannerLabel } from "@/lib/target-labels";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -136,8 +137,9 @@ export default async function ProfileDetailPage({ params }: Props) {
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-600"
                         }
+                        title={target.scannerStatus === "LOCAL" ? LOCAL_TARGET_HINT : undefined}
                       >
-                        {target.scannerStatus === "DEPLOYED" ? "Deployed" : "Ready to deploy"}
+                        {scannerLabel(target.scannerStatus)}
                       </Badge>
                     </td>
                     <td className="px-6 py-3">
@@ -150,7 +152,7 @@ export default async function ProfileDetailPage({ params }: Props) {
                             : "bg-gray-100 text-gray-600"
                         }
                       >
-                        {target.reachabilityStatus}
+                        {reachabilityLabel(target.reachabilityStatus)}
                       </Badge>
                     </td>
                     <td className="px-6 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">

@@ -77,8 +77,8 @@ export async function addTarget(
   if (!profile) throw new Error("Profile not found");
 
   const local = await isLocalTarget(value, type);
-  // Can samma.io reach it from outside? Its port, or 443/80 (src/lib/reachability.ts).
-  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type, port);
+  // Can samma.io reach it from outside? A LOCAL target cannot. Its port, or 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "DOWN" : await checkReachability(value, type, port);
 
   const target = await prisma.target.create({
     data: {
