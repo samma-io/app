@@ -7,6 +7,7 @@ import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { getScannerDb } from "@/lib/scanner-db";
 import { formatDate } from "@/lib/utils";
+import { LOCAL_TARGET_HINT, reachabilityLabel, scannerLabel } from "@/lib/target-labels";
 import {
   ScanResultsAccordion,
   type ScanResult,
@@ -129,17 +130,21 @@ export default async function TargetDetailPage({ params }: Props) {
             <div>
               <dt className="text-gray-400 mb-0.5">Scanner status</dt>
               <dd>
-                <Badge className={scannerBadgeClass}>
-                  {target.scannerStatus === "DEPLOYED" ? "Deployed" : "Ready to deploy"}
-                </Badge>
+                <Badge className={scannerBadgeClass}>{scannerLabel(target.scannerStatus)}</Badge>
               </dd>
             </div>
             <div>
               <dt className="text-gray-400 mb-0.5">Reachability</dt>
               <dd>
-                <Badge className={reachBadgeClass}>{target.reachabilityStatus}</Badge>
+                <Badge className={reachBadgeClass}>{reachabilityLabel(target.reachabilityStatus)}</Badge>
               </dd>
             </div>
+            {target.scannerStatus === "LOCAL" && (
+              <div className="col-span-full">
+                <dt className="text-gray-400 mb-0.5">Why not scanned</dt>
+                <dd className="text-gray-600">{LOCAL_TARGET_HINT}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-gray-400 mb-0.5">Created</dt>
               <dd className="text-gray-900">{formatDate(target.createdAt.toISOString())}</dd>

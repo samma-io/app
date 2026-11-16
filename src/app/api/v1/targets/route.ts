@@ -127,8 +127,8 @@ export async function POST(req: NextRequest) {
 
   // 6. Create the target
   const local = await isLocalTarget(value, type as "ip" | "dns");
-  // Can samma.io reach it from outside? 443/80 (src/lib/reachability.ts).
-  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type as "ip" | "dns");
+  // Can samma.io reach it from outside? A LOCAL target cannot. 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "DOWN" : await checkReachability(value, type as "ip" | "dns");
 
   const target = await prisma.target.create({
     data: {
@@ -219,8 +219,8 @@ export async function PUT(req: NextRequest) {
 
   // 7. Create new target
   const local = await isLocalTarget(value, type as "ip" | "dns");
-  // Can samma.io reach it from outside? 443/80 (src/lib/reachability.ts).
-  const reachabilityStatus = local ? "UNKNOWN" : await checkReachability(value, type as "ip" | "dns");
+  // Can samma.io reach it from outside? A LOCAL target cannot. 443/80 (src/lib/reachability.ts).
+  const reachabilityStatus = local ? "DOWN" : await checkReachability(value, type as "ip" | "dns");
 
   const target = await prisma.target.create({
     data: {

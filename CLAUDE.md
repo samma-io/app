@@ -105,7 +105,7 @@ An `/api/v1` call carrying `X-Samma-Cluster: <name>` (and optionally `X-Samma-Ve
 
 `Target` model has two status fields:
 - `scannerStatus: ScannerStatus` — `READY_TO_DEPLOY` | `DEPLOYED`
-- `reachabilityStatus: ReachabilityStatus` — `UP` | `DOWN` | `UNKNOWN`. Set when a target is added (dashboard `addTarget`, API POST/PUT): `checkReachability()` in `src/lib/reachability.ts` tries a TCP handshake to the target's port, or 443 and 80, on the addresses it resolved itself (3 s timeout, nothing sent or read). Any connect is `UP`, none is `DOWN`, and a LOCAL or unresolvable target is `UNKNOWN`. The schema default `UP` only applies to older rows; nothing re-checks yet.
+- `reachabilityStatus: ReachabilityStatus` — `UP` | `DOWN` | `UNKNOWN`. Set when a target is added (dashboard `addTarget`, API POST/PUT): `checkReachability()` in `src/lib/reachability.ts` tries a TCP handshake to the target's port, or 443 and 80, on the addresses it resolved itself (3 s timeout, nothing sent or read). Any connect is `UP`, none is `DOWN`. A LOCAL target (private or unresolvable, `isLocalTarget`) is stored as `DOWN` without a connection and gets no scanners; the dashboard shows it as "Not scanned · Unreachable" (`src/lib/target-labels.ts`). The samma operator registers such Ingress hosts on purpose, so a cluster's inventory is complete. The schema default `UP` only applies to older rows; nothing re-checks yet.
 
 ### Component Organization
 
