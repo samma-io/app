@@ -31,6 +31,11 @@ metadata:
   name: {{ .Values.cloudnativepg.clusterName }}
   labels:
     {{- include "samma-app.labels" . | nindent 4 }}
+  annotations:
+    # The production database. ArgoCD (samma-app, prune on) must never delete
+    # it: not when it disappears from the rendered manifest, and not when the
+    # Application itself is deleted.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   instances: {{ .Values.cloudnativepg.instances }}
   postgresUID: {{ .Values.cloudnativepg.postgresUID }}
