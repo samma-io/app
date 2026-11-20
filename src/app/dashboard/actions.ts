@@ -10,7 +10,9 @@ import { generateToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
-import type { ProfileType } from "@prisma/client";
+import { getExternalScanner } from "@/lib/external-scanners";
+import { encryptSecret, SecretBoxNotConfigured } from "@/lib/secret-box";
+import { Prisma, type ProfileType } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
 
@@ -244,6 +246,107 @@ export async function removeCluster(clusterId: string) {
   await prisma.cluster.delete({ where: { id: cluster.id } });
 
   revalidatePath("/dashboard/clusters");
+}
+
+// ─── External Scanners ────────────────────────────────────────────────────────
+
+const MAX_API_KEY_LENGTH = 512;
+
+// Connect an external scanner from the catalog. The vendor API key is
+// encrypted before it is stored and is never returned to the client.
+// Returns an error message instead of throwing so the form can show it.
+export async function connectExternalScanner(input: {
+  scannerId: string;
+  name: string;
+  apiKey: string;
+}): Promise<{ error?: string }> {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const scanner = getExternalScanner(input.scannerId);
+  if (!scanner) return { error: "Unknown scanner" };
+
+  const name = input.name.trim().slice(0, 100) || scanner.label;
+  const apiKey = input.apiKey.trim();
+  if (!apiKey) return { error: "API key is required" };
+  if (apiKey.length > MAX_API_KEY_LENGTH) return { error: "API key is too long" };
+
+  let apiKeyEncrypted: string;
+  try {
+    apiKeyEncrypted = encryptSecret(apiKey);
+  } catch (err) {
+    if (err instanceof SecretBoxNotConfigured) {
+      return { error: "External scanners are not configured on this server (SCANNER_SECRET_KEY)." };
+    }
+    throw err;
+  }
+
+  try {
+    await prisma.externalScannerConnection.create({
+      data: {
+        organisationId: org.id,
+        scannerId: scanner.id,
+        name,
+        apiKeyEncrypted,
+        apiKeyLast4: apiKey.slice(-4),
+        pricePerScanCents: scanner.pricePerScanCents,
+        currency: scanner.currency,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { error: `A connection named "${name}" already exists` };
+    }
+    throw err;
+  }
+
+  revalidatePath("/dashboard/scanners");
+  return {};
+}
+
+export async function removeExternalScanner(connectionId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const connection = await prisma.externalScannerConnection.findFirst({
+    where: { id: connectionId, organisationId: org.id },
+  });
+  if (!connection) throw new Error("Connection not found");
+
+  await prisma.externalScannerConnection.delete({ where: { id: connection.id } });
+
+  revalidatePath("/dashboard/scanners");
+  revalidatePath("/dashboard/profiles", "layout");
+}
+
+// Enable or disable an external scanner on a profile. Both must belong to the
+// active organisation.
+export async function setProfileExternalScanner(
+  profileId: string,
+  connectionId: string,
+  enabled: boolean
+) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const [profile, connection] = await Promise.all([
+    prisma.profile.findFirst({ where: { id: profileId, organisationId: org.id } }),
+    prisma.externalScannerConnection.findFirst({
+      where: { id: connectionId, organisationId: org.id },
+    }),
+  ]);
+  if (!profile) throw new Error("Profile not found");
+  if (!connection) throw new Error("Connection not found");
+
+  const key = { profileId_connectionId: { profileId: profile.id, connectionId: connection.id } };
+  if (enabled) {
+    await prisma.profileExternalScanner.upsert({ where: key, create: key.profileId_connectionId, update: {} });
+  } else {
+    await prisma.profileExternalScanner.deleteMany({ where: key.profileId_connectionId });
+  }
+
+  revalidatePath(`/dashboard/profiles/${profile.id}`);
+  revalidatePath("/dashboard/scanners");
 }
 
 // ─── Organisations ────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ export const GUIDE_LINKS = {
   awsSiemDataFlow: `${GUIDE_URL}/blob/main/6-aws-siem-data-flow/README.md`,
   awsSiemDeploy: `${GUIDE_URL}/blob/main/7-aws-siem-deploy/README.md`,
   kubernetesSiem: `${GUIDE_URL}/blob/main/8-kubernetes-siem/README.md`,
+  externalScanners: `${GUIDE_URL}/blob/main/9-external-scanners/README.md`,
 } as const;
 
 export const NAV_LINKS = [
@@ -32,3 +33,19 @@ export const SCANNER_TYPES: Record<
   tsunami: { label: "Tsunami", color: "bg-orange-100 text-orange-800" },
   dnsrecon: { label: "DNSRecon", color: "bg-green-100 text-green-800" },
 } as const;
+
+// Scanners Samma runs itself, keyed by the `scanner` value in scan_results.
+// Internal scans have no per-scan cost.
+export const INTERNAL_SCANNERS: Record<string, string> = {
+  "detect-tls-scanner": "TLS",
+  "detect-http-headers-scanner": "HTTP security headers",
+  "detect-http-redirect-scanner": "HTTP redirects",
+  "detect-port-scanner": "Ports",
+  "detect-ssh-banner-scanner": "SSH banner",
+  "detect-dns-scanner": "DNS",
+  "detect-whois-scanner": "WHOIS",
+  "detect-traceroute-scanner": "Traceroute",
+  nmap: "Nmap",
+  nikto: "Nikto",
+  tsunami: "Tsunami",
+};

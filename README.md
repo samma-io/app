@@ -38,6 +38,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `EMAIL_FROM` | From address for magic link emails |
 | `OPERATOR_API_URL` | URL of the Kubernetes operator Flask API |
 | `OPERATOR_API_TOKEN` | Bearer token for the operator Flask API — required whenever `OPERATOR_API_URL` is set |
+| `SCANNER_SECRET_KEY` | 32-byte base64 key (`openssl rand -base64 32`) that encrypts external scanner API keys. Without it, external scanners cannot be connected |
 
 ## Architecture
 
