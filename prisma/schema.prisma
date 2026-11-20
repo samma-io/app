@@ -73,6 +73,7 @@ model Organisation {
   clusters  Cluster[]
 
   externalScanners ExternalScannerConnection[]
+  externalScanRuns ExternalScanRun[]
 }
 
 enum OrgRole {
@@ -155,6 +156,8 @@ model Target {
   profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
 
+  externalScanRuns ExternalScanRun[]
+
   @@index([profileId])
   @@index([clusterId])
 }
@@ -216,6 +219,7 @@ model ExternalScannerConnection {
 
   organisation Organisation             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   profiles     ProfileExternalScanner[]
+  runs         ExternalScanRun[]
 
   @@unique([organisationId, name])
   @@index([organisationId])
@@ -233,4 +237,39 @@ model ProfileExternalScanner {
 
   @@id([profileId, connectionId])
   @@index([connectionId])
+}
+
+enum ExternalScanStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// One scan of one target by an external scanner connection. Samma starts it
+// (POST {apiUrl}/scans), stores the scanner's uuid as externalId, and fetches
+// the result (GET {apiUrl}/scans/<uuid>) when a page that shows it is opened
+// (src/lib/external-scans.ts). Only application/json results are accepted.
+model ExternalScanRun {
+  id             String             @id @default(cuid())
+  organisationId String
+  connectionId   String
+  targetId       String
+  externalId     String? // uuid from the external scanner; null if starting failed
+  status         ExternalScanStatus @default(RUNNING)
+  trigger        String // "new-target" | "rescan"
+  requestedAt    DateTime           @default(now())
+  finishedAt     DateTime?
+  lastPolledAt   DateTime?
+  contentType    String?
+  result         Json?
+  findingCount   Int                @default(0)
+  error          String?
+
+  organisation Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  connection   ExternalScannerConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  target       Target                    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
+  @@index([organisationId, status])
+  @@index([targetId])
 }

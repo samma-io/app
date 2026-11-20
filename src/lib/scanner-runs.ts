@@ -6,7 +6,7 @@ import { DEMO_TARGETS, demoRuns, type DemoTarget } from "@/data/mock-scanner-run
 
 // Everything the scanner dashboard shows, scoped to one organisation.
 // Internal runs come from TimescaleDB (latest run per scanner and target);
-// external runs are demo data until external scanners are actually run.
+// external runs come from ExternalScanRun (src/lib/external-scans.ts).
 
 export type RunRow = {
   time: Date;
@@ -46,45 +46,45 @@ export type ScannerDashboard = {
 const WINDOW_DAYS = 30;
 
 export async function getScannerDashboard(organisationId: string): Promise<ScannerDashboard> {
-  const [targets, connections] = await Promise.all([
+  const [targets, connections, externalScanRuns] = await Promise.all([
     prisma.target.findMany({
       where: { profile: { organisationId } },
       select: { id: true, value: true, profileId: true },
     }),
     prisma.externalScannerConnection.findMany({
       where: { organisationId },
-      include: { profiles: { include: { profile: { select: { targets: { select: { id: true, value: true, profileId: true } } } } } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.externalScanRun.findMany({
+      where: { organisationId, requestedAt: { gte: new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000) } },
+      include: { target: { select: { id: true, value: true, profileId: true } } },
+      orderBy: { requestedAt: "desc" },
     }),
   ]);
 
   const byId = new Map(targets.map((t) => [t.id, t]));
   const { runs: internalRuns, demo: internalIsDemo } = await getInternalRuns(targets, byId);
 
-  const externalRuns: RunRow[] = [];
-  for (const c of connections) {
-    const profileTargets = new Map<string, DemoTarget>(
-      c.profiles.flatMap((p) => p.profile.targets).map((t) => [t.id, t])
-    );
-    for (const r of demoRuns(c.id, [...profileTargets.values()], { days: WINDOW_DAYS, everyDays: 7 })) {
-      const t = profileTargets.get(r.targetId)!;
-      externalRuns.push({
-        time: r.time,
-        scanner: c.id,
-        scannerLabel: c.name,
-        kind: "external",
-        targetId: t.id,
-        targetValue: t.value,
-        profileId: t.profileId,
-        outcome: r.outcome,
-        findingCount: r.findingCount,
-        // A failed run is not charged.
-        costCents: r.outcome === "completed" ? c.pricePerScanCents : 0,
-        currency: c.currency,
-        demo: true,
-      });
-    }
-  }
+  const connectionsById = new Map(connections.map((c) => [c.id, c]));
+  const externalRuns: RunRow[] = externalScanRuns.flatMap((r) => {
+    const c = connectionsById.get(r.connectionId);
+    if (!c) return [];
+    return [{
+      time: r.finishedAt ?? r.requestedAt,
+      scanner: c.id,
+      scannerLabel: c.name,
+      kind: "external" as const,
+      targetId: r.target.id,
+      targetValue: r.target.value,
+      profileId: r.target.profileId,
+      outcome: r.status.toLowerCase(),
+      findingCount: r.findingCount,
+      // Only a completed run is charged.
+      costCents: r.status === "COMPLETED" ? c.pricePerScanCents : 0,
+      currency: c.currency,
+      demo: false,
+    }];
+  });
 
   const runs = [...internalRuns, ...externalRuns].sort((a, b) => b.time.getTime() - a.time.getTime());
 
@@ -101,7 +101,7 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
       pricePerScanCents: c.pricePerScanCents,
       currency: c.currency,
       spend30dCents: 0,
-      demo: true,
+      demo: false,
     });
   }
   const targetSets = new Map<string, Set<string>>();

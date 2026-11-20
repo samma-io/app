@@ -2,6 +2,9 @@
 // To offer a new external scanner, append an entry here. The price is copied
 // onto each connection when it is made, so changing it here does not rewrite
 // what existing connections are charged.
+// apiUrl is where Samma calls the scanner (POST /scans, GET /scans/<uuid>);
+// set EXTERNAL_SCANNER_URL_<ID> (e.g. EXTERNAL_SCANNER_URL_SAMMA_DEMO) to
+// override it per environment. See samma-io/external-scanner for the API.
 
 export type ExternalScanner = {
   id: string;
@@ -11,6 +14,7 @@ export type ExternalScanner = {
   pricePerScanCents: number;
   currency: string;
   apiKeyHint: string;
+  apiUrl: string;
 };
 
 export const EXTERNAL_SCANNERS: readonly ExternalScanner[] = [
@@ -19,10 +23,11 @@ export const EXTERNAL_SCANNERS: readonly ExternalScanner[] = [
     label: "Samma Demo Scanner",
     vendor: "Samma",
     description:
-      "A demo external scanner for trying out the external scanner flow. Runs are simulated.",
+      "A demo external scanner for trying out the external scanner flow. Checks that each target answers over HTTPS.",
     pricePerScanCents: 500,
     currency: "USD",
     apiKeyHint: "sd_…",
+    apiUrl: "http://external-scanner:8080",
   },
 ];
 

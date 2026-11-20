@@ -11,6 +11,7 @@ import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/oper
 import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
 import { getExternalScanner } from "@/lib/external-scanners";
+import { startExternalScans } from "@/lib/external-scans";
 import { encryptSecret, SecretBoxNotConfigured } from "@/lib/secret-box";
 import { Prisma, type ProfileType } from "@prisma/client";
 
@@ -107,6 +108,9 @@ export async function addTarget(
   const updated = deployed
     ? await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } })
     : target;
+
+  await startExternalScans(target.id, "new-target")
+    .catch((err) => console.error("[external-scans] start failed:", err instanceof Error ? err.message : err));
 
   revalidatePath(`/dashboard/profiles/${profileId}`);
   revalidatePath("/dashboard");
@@ -346,6 +350,30 @@ export async function setProfileExternalScanner(
   }
 
   revalidatePath(`/dashboard/profiles/${profile.id}`);
+  revalidatePath("/dashboard/scanners");
+}
+
+// Scan one target again with one external scanner. The target and connection
+// must belong to the active organisation and the scanner must be enabled on
+// the target's profile.
+export async function rescanExternal(targetId: string, connectionId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const target = await prisma.target.findFirst({
+    where: { id: targetId, profile: { organisationId: org.id } },
+  });
+  if (!target) throw new Error("Target not found");
+  if (target.scannerStatus === "LOCAL") throw new Error("Local targets cannot be scanned");
+
+  const enabled = await prisma.profileExternalScanner.findFirst({
+    where: { profileId: target.profileId, connectionId, connection: { organisationId: org.id } },
+  });
+  if (!enabled) throw new Error("Scanner not found");
+
+  await startExternalScans(target.id, "rescan", connectionId);
+
+  revalidatePath(`/dashboard/profiles/${target.profileId}/targets/${target.id}`);
   revalidatePath("/dashboard/scanners");
 }
 

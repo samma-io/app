@@ -52,7 +52,7 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/dashboard/profiles/[id]` — Profile detail with targets table
 - `/dashboard/profiles/[id]/targets/[targetId]` — Target detail + scan results from TimescaleDB
 - `/dashboard/clusters` — Connected clusters: name, Ready/Down (seen in the last 15 min), version, target count
-- `/dashboard/scanners` — Connect external scanners (vendor API key, encrypted with `SCANNER_SECRET_KEY`) and the scanner dashboard: internal + external scanners, runs, targets, cost. External runs are demo data (`src/data/mock-scanner-runs.ts`); internal runs come from TimescaleDB or demo data when it is unset. Catalog + prices: `src/lib/external-scanners.ts`
+- `/dashboard/scanners` — Connect external scanners (vendor API key, encrypted with `SCANNER_SECRET_KEY`) and the scanner dashboard: internal + external scanners, runs, targets, cost. Catalog, prices and API URLs: `src/lib/external-scanners.ts` (`EXTERNAL_SCANNER_URL_<ID>` overrides the URL). External runs are real (`ExternalScanRun`, see below); internal runs come from TimescaleDB or demo data when it is unset
 - `/dashboard/tokens` — API token management
 - `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
 
@@ -101,6 +101,10 @@ Profile mapping: `SMALL` → `"detect"`, `FULL` → `"all"`.
 #### Connected clusters
 
 An `/api/v1` call carrying `X-Samma-Cluster: <name>` (and optionally `X-Samma-Version`) upserts a `Cluster` (`organisationId`, `name` unique) and moves its `lastSeenAt`. `authenticateApiToken` does this for every token, read-only included, and hands routes `clusterId` (a promise). POST/PUT `/api/v1/targets` store it on new targets, and PUT claims an existing target that has none. Status is derived on read: `clusterStatus()` in `src/lib/clusters.ts` (Ready within `READY_WINDOW_MS`, 15 min). The operator and collector send the header when the Helm chart's `clusterName` is set. An invalid name is ignored.
+
+## External scanner runs
+
+`src/lib/external-scans.ts`. A target added (dashboard or API POST/PUT) to a profile with external scanners enabled, or **Rescan** on the target page (`rescanExternal` action), calls `POST {apiUrl}/scans` with the connection's decrypted key (`src/lib/external-scanner-client.ts`) and stores an `ExternalScanRun` with the scanner's uuid. LOCAL targets are never sent. Results are pulled, not pushed: opening `/dashboard/scanners` or a target page runs `refreshExternalScans()`, which `GET`s `{apiUrl}/scans/<uuid>` for RUNNING runs (at most every 5 s; 24 h → FAILED). Only `application/json` results are accepted (1 MB cap); `formatExternalResult()` is the one place the format is read (a `findings` array becomes a table, anything else is shown as raw JSON). Only COMPLETED runs are charged. The scanner itself is `samma-io/external-scanner`.
 
 ## Target Status Fields
 
