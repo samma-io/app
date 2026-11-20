@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AddTargetForm } from "@/components/dashboard/add-target-form";
 import { DeleteTargetButton } from "@/components/dashboard/delete-target-button";
 import { TargetScannerButtons } from "@/components/dashboard/target-scanner-buttons";
+import { ProfileExternalScanners } from "@/components/dashboard/profile-external-scanners";
 import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
@@ -32,6 +33,12 @@ export default async function ProfileDetailPage({ params }: Props) {
   });
 
   if (!profile) notFound();
+
+  const connections = await prisma.externalScannerConnection.findMany({
+    where: { organisationId: org.id },
+    include: { profiles: { where: { profileId: profile.id }, select: { profileId: true } } },
+    orderBy: { createdAt: "asc" },
+  });
 
   return (
     <div className="space-y-6">
@@ -172,6 +179,39 @@ export default async function ProfileDetailPage({ params }: Props) {
                 ))}
               </tbody>
             </table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold text-gray-900">External scanners</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            An enabled external scanner scans every target in this profile, and is charged per
+            target on each run.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {connections.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No external scanners connected.{" "}
+              <Link href="/dashboard/scanners" className="text-samma-navy hover:underline">
+                Connect one in Dashboard → Scanners
+              </Link>
+              .
+            </p>
+          ) : (
+            <ProfileExternalScanners
+              profileId={profile.id}
+              targetCount={profile.targets.length}
+              connections={connections.map((c) => ({
+                id: c.id,
+                name: c.name,
+                pricePerScanCents: c.pricePerScanCents,
+                currency: c.currency,
+                enabled: c.profiles.length > 0,
+              }))}
+            />
           )}
         </CardContent>
       </Card>

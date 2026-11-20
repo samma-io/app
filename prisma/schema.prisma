@@ -11,11 +11,11 @@ datasource db {
 // ─── NextAuth models ──────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
   pendingOrgName String?
 
   accounts    Account[]
@@ -71,6 +71,8 @@ model Organisation {
   profiles  Profile[]
   apiTokens ApiToken[]
   clusters  Cluster[]
+
+  externalScanners ExternalScannerConnection[]
 }
 
 enum OrgRole {
@@ -109,8 +111,9 @@ model Profile {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  targets      Target[]
+  organisation     Organisation             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  targets          Target[]
+  externalScanners ProfileExternalScanner[]
 
   @@index([organisationId])
 }
@@ -138,16 +141,16 @@ enum ReachabilityStatus {
 model Target {
   id                 String             @id @default(cuid())
   profileId          String
-  value              String             // e.g. "192.168.1.1" or "example.com"
+  value              String // e.g. "192.168.1.1" or "example.com"
   type               TargetType
-  label              String?            // optional human-readable name
-  port               Int?               // optional port override
+  label              String? // optional human-readable name
+  port               Int? // optional port override
   scannerStatus      ScannerStatus      @default(READY_TO_DEPLOY)
   reachabilityStatus ReachabilityStatus @default(UP)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  clusterId          String?            // the cluster whose operator added it (X-Samma-Cluster)
+  clusterId String? // the cluster whose operator added it (X-Samma-Cluster)
 
   profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
@@ -165,7 +168,7 @@ model Cluster {
   id             String   @id @default(cuid())
   organisationId String
   name           String
-  version        String?  // X-Samma-Version of the last call
+  version        String? // X-Samma-Version of the last call
   lastSeenAt     DateTime @default(now())
   createdAt      DateTime @default(now())
 
@@ -182,7 +185,7 @@ model Cluster {
 model ApiToken {
   id             String    @id @default(cuid())
   organisationId String
-  name           String    // human-readable label, e.g. "CI pipeline"
+  name           String // human-readable label, e.g. "CI pipeline"
   tokenHash      String    @unique // SHA-256(rawToken), hex-encoded
   readOnly       Boolean   @default(false) // read-only tokens are rejected by write endpoints
   lastUsedAt     DateTime?
@@ -192,4 +195,42 @@ model ApiToken {
 
   @@index([organisationId])
   @@index([tokenHash])
+}
+
+// ─── External Scanners ────────────────────────────────────────────────────────
+
+// A connection from an org to a third-party scanner from the catalog in
+// src/lib/external-scanners.ts. The vendor API key is outbound (Samma sends it
+// to the vendor), so it is encrypted with AES-256-GCM (src/lib/secret-box.ts),
+// not hashed. The price is snapshotted at connect time.
+model ExternalScannerConnection {
+  id                String   @id @default(cuid())
+  organisationId    String
+  scannerId         String // catalog id, e.g. "samma-demo"
+  name              String
+  apiKeyEncrypted   String // iv:tag:ciphertext, base64
+  apiKeyLast4       String
+  pricePerScanCents Int
+  currency          String   @default("USD")
+  createdAt         DateTime @default(now())
+
+  organisation Organisation             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  profiles     ProfileExternalScanner[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId])
+}
+
+// Enables an external scanner connection on a profile (the target group):
+// each run scans every target in the profile, at pricePerScanCents per target.
+model ProfileExternalScanner {
+  profileId    String
+  connectionId String
+  enabledAt    DateTime @default(now())
+
+  profile    Profile                   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  connection ExternalScannerConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, connectionId])
+  @@index([connectionId])
 }

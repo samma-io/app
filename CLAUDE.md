@@ -52,6 +52,7 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/dashboard/profiles/[id]` — Profile detail with targets table
 - `/dashboard/profiles/[id]/targets/[targetId]` — Target detail + scan results from TimescaleDB
 - `/dashboard/clusters` — Connected clusters: name, Ready/Down (seen in the last 15 min), version, target count
+- `/dashboard/scanners` — Connect external scanners (vendor API key, encrypted with `SCANNER_SECRET_KEY`) and the scanner dashboard: internal + external scanners, runs, targets, cost. External runs are demo data (`src/data/mock-scanner-runs.ts`); internal runs come from TimescaleDB or demo data when it is unset. Catalog + prices: `src/lib/external-scanners.ts`
 - `/dashboard/tokens` — API token management
 - `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
 
