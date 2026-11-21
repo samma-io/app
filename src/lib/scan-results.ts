@@ -8,6 +8,9 @@ import { Prisma, PrismaClient } from "@prisma/client";
  *  - finding-v2 scanners (detect-*): the findings of the newest `kind: run`
  *    message per (target, scanner), joined on `runId`. A run that is still in
  *    progress (no run message yet) is not shown until it completes.
+ *  - finding-v2 scanners that have never sent a `kind: run` message for the
+ *    target (seen in prod: detect-*:2.0.2 on hrb): the findings of the newest
+ *    `runId` among their `kind: finding` rows ("orphan" runs).
  *  - legacy scanners (nmap, nikto, tsunami; rows without `kind`): the rows
  *    within an hour of that scanner's newest row for the target.
  * Only the last LOOKBACK of data is considered, which keeps the hypertable
@@ -66,6 +69,14 @@ function latestCtes(ids: string[]) {
       WHERE samma_id = ANY(${ids}::text[]) AND time > ${LOOKBACK} AND raw->>'kind' = 'run'
       ORDER BY samma_id, scanner, time DESC
     ),
+    orphan AS (
+      SELECT DISTINCT ON (s.samma_id, s.scanner) s.samma_id, s.scanner, s.raw->>'runId' AS run_id, s.time
+      FROM scan_results s
+      WHERE s.samma_id = ANY(${ids}::text[]) AND s.time > ${LOOKBACK} AND s.raw->>'kind' = 'finding'
+        AND s.raw->>'runId' IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM runs r WHERE r.samma_id = s.samma_id AND r.scanner = s.scanner)
+      ORDER BY s.samma_id, s.scanner, s.time DESC
+    ),
     legacy AS (
       SELECT s.samma_id, s.scanner, max(s.time) AS last
       FROM scan_results s
@@ -78,10 +89,12 @@ function latestCtes(ids: string[]) {
       FROM scan_results s
       LEFT JOIN runs r ON r.samma_id = s.samma_id AND r.scanner = s.scanner
         AND s.raw->>'kind' = 'finding' AND s.raw->>'runId' = r.raw->>'runId'
+      LEFT JOIN orphan o ON o.samma_id = s.samma_id AND o.scanner = s.scanner
+        AND s.raw->>'kind' = 'finding' AND s.raw->>'runId' = o.run_id
       LEFT JOIN legacy l ON l.samma_id = s.samma_id AND l.scanner = s.scanner
         AND s.raw->>'kind' IS NULL AND s.time > l.last - ${LEGACY_BATCH}
       WHERE s.samma_id = ANY(${ids}::text[]) AND s.time > ${LOOKBACK}
-        AND (r.samma_id IS NOT NULL OR l.samma_id IS NOT NULL)
+        AND (r.samma_id IS NOT NULL OR o.samma_id IS NOT NULL OR l.samma_id IS NOT NULL)
     )`;
 }
 
@@ -170,6 +183,8 @@ export async function latestRuns(db: PrismaClient, ids: string[]): Promise<Scann
     db.$queryRaw<Array<{ samma_id: string; scanner: string; time: Date; raw: unknown; legacy: boolean }>>`
       WITH ${latestCtes(ids)}
       SELECT samma_id, scanner, time, raw, false AS legacy FROM runs
+      UNION ALL
+      SELECT samma_id, scanner, time, jsonb_build_object('runId', run_id) AS raw, false AS legacy FROM orphan
       UNION ALL
       SELECT samma_id, scanner, last AS time, NULL::jsonb AS raw, true AS legacy FROM legacy
       ORDER BY samma_id, scanner`,

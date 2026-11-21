@@ -48,7 +48,8 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/` — Marketing/hero landing page
 - `/integration` — Public page for clients and partners: operator → samma.io → partner scanners → results back to the cluster (collector metrics/logs), with the partner API contract
 - `/sign-in`, `/sign-up` — Clerk sign-in / sign-up
-- `/dashboard` — Main dashboard (protected)
+- `/dashboard` — Overview: open findings by severity (Critical/High/Medium tiles → `/dashboard/findings`), top findings, scanner status (OK/Stale/Failed), targets by risk. Data: `getVulnerabilitySummary()` in `src/lib/vulnerability-summary.ts`; no demo numbers
+- `/dashboard/findings` — Open findings, filterable by `severity`, `scanner`, `target` (search params); rows expand to evidence, remediation, CVEs, references
 - `/dashboard/profiles` — Scan profiles list
 - `/dashboard/profiles/[id]` — Profile detail with targets table
 - `/dashboard/profiles/[id]/targets/[targetId]` — Target detail + scan results from TimescaleDB
