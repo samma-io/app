@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** A calendar date with no time, e.g. "Nov 19, 2026". Dates without a time are read as UTC. */
+export function formatDay(date: string): string {
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",

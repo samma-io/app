@@ -3,14 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
-import { generateToken } from "@/lib/token";
+import { generateToken, hashToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
 import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
 import { getExternalScanner } from "@/lib/external-scanners";
 import { startExternalScans } from "@/lib/external-scans";
 import { encryptSecret, SecretBoxNotConfigured } from "@/lib/secret-box";
-import { Prisma, type ProfileType } from "@prisma/client";
+import { getSiemProvider } from "@/lib/siem";
+import { Prisma, type ProfileType, type SiemHosting } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
 
@@ -372,4 +373,105 @@ export async function rescanExternal(targetId: string, connectionId: string) {
 
   revalidatePath(`/dashboard/profiles/${target.profileId}/targets/${target.id}`);
   revalidatePath("/dashboard/scanners");
+}
+
+// ─── SIEM ────────────────────────────────────────────────────────────────────
+
+const SIEM_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$/;
+const SIEM_HOSTINGS: SiemHosting[] = ["ANKRA_SAMMA", "ANKRA_OWN", "CONNECTED"];
+
+// The prefix makes a leaked SIEM key easy to recognise (and to tell apart from
+// an /api/v1 token). Only SHA-256(raw) is stored.
+function newSiemKey() {
+  const raw = `samma_siem_${generateToken().raw}`;
+  return { raw, hash: hashToken(raw), last4: raw.slice(-4) };
+}
+
+/**
+ * Create a SIEM: a mocked Ankra deploy, or a connection to a SIEM the org
+ * already runs. Either way the SIEM key is returned once and only its hash is
+ * stored.
+ */
+export async function createSiemInstance(input: {
+  name: string;
+  hosting: string;
+  provider?: string;
+  region?: string;
+}): Promise<{ error?: string; id?: string; key?: string }> {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const name = input.name.trim();
+  if (!SIEM_NAME_RE.test(name)) {
+    return { error: "Use 1–64 letters, digits, spaces, dots, dashes or underscores." };
+  }
+  const hosting = SIEM_HOSTINGS.find((h) => h === input.hosting);
+  if (!hosting) return { error: "Unknown hosting option" };
+
+  let provider: string | null = null;
+  let region: string | null = null;
+  if (hosting === "ANKRA_OWN") {
+    const p = getSiemProvider(input.provider);
+    if (!p) return { error: "Choose a hosting provider" };
+    if (!(p.regions as readonly string[]).includes(input.region ?? "")) {
+      return { error: "Choose a region" };
+    }
+    provider = p.id;
+    region = input.region!;
+  }
+
+  const key = newSiemKey();
+  try {
+    const siem = await prisma.siemInstance.create({
+      data: {
+        organisationId: org.id,
+        name,
+        hosting,
+        provider,
+        region,
+        apiKeyHash: key.hash,
+        apiKeyLast4: key.last4,
+      },
+    });
+    revalidatePath("/dashboard/siem");
+    return { id: siem.id, key: key.raw };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { error: `A SIEM named "${name}" already exists` };
+    }
+    throw err;
+  }
+}
+
+/** Replace a SIEM's key. The old key stops working; the new one is shown once. */
+export async function rotateSiemKey(siemId: string): Promise<{ key: string }> {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const siem = await prisma.siemInstance.findFirst({
+    where: { id: siemId, organisationId: org.id },
+  });
+  if (!siem) throw new Error("SIEM not found");
+
+  const key = newSiemKey();
+  await prisma.siemInstance.update({
+    where: { id: siem.id },
+    data: { apiKeyHash: key.hash, apiKeyLast4: key.last4 },
+  });
+
+  revalidatePath(`/dashboard/siem/${siem.id}`);
+  return { key: key.raw };
+}
+
+export async function removeSiemInstance(siemId: string) {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+
+  const siem = await prisma.siemInstance.findFirst({
+    where: { id: siemId, organisationId: org.id },
+  });
+  if (!siem) throw new Error("SIEM not found");
+
+  await prisma.siemInstance.delete({ where: { id: siem.id } });
+  revalidatePath("/dashboard/siem");
 }

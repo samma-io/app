@@ -93,6 +93,9 @@ model Organisation {
 
   externalScanners ExternalScannerConnection[]
   externalScanRuns ExternalScanRun[]
+
+  siemInstances    SiemInstance[]
+  siemSubscription SiemSubscription?
 }
 
 enum OrgRole {
@@ -291,4 +294,50 @@ model ExternalScanRun {
   @@unique([connectionId, externalId])
   @@index([organisationId, status])
   @@index([targetId])
+}
+
+// ─── SIEM ─────────────────────────────────────────────────────────────────────
+
+// How a SIEM was created. ANKRA_* deploys are mocked for now: nothing is
+// provisioned, the status is derived from createdAt (src/lib/siem.ts).
+enum SiemHosting {
+  ANKRA_SAMMA // Ankra, on hosting Samma supports
+  ANKRA_OWN // Ankra, on hosting the customer chooses
+  CONNECTED // a SIEM the customer already runs
+}
+
+// A SIEM that belongs to an org. The SIEM key is inbound (the SIEM will send
+// it to Samma), so only its SHA-256 hash is stored; the raw key is shown once.
+// It is not an ApiToken, so it cannot call the /api/v1 findings/targets routes.
+// Alert counts and rulesets are demo data until a SIEM reports in.
+model SiemInstance {
+  id             String      @id @default(cuid())
+  organisationId String
+  name           String
+  hosting        SiemHosting
+  provider       String? // ANKRA_OWN: hosting provider id, see src/lib/siem.ts
+  region         String?
+  apiKeyHash     String      @unique // SHA-256(rawKey), hex-encoded
+  apiKeyLast4    String
+  rulesetVersion String? // reported by the SIEM; null until it reports
+  lastSeenAt     DateTime?
+  createdAt      DateTime    @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, name])
+  @@index([organisationId])
+}
+
+// The org's subscription to Samma detection rules. No billing yet: set by
+// hand (SQL / Prisma Studio).
+model SiemSubscription {
+  id             String    @id @default(cuid())
+  organisationId String    @unique
+  plan           String // e.g. "rules-standard"
+  active         Boolean   @default(true)
+  startedAt      DateTime  @default(now())
+  renewsAt       DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 }
