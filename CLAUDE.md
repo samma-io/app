@@ -68,6 +68,7 @@ Clerk (`@clerk/nextjs`) handles identity. The local Prisma `User` row (linked by
 - `src/lib/org.ts` — `getActiveOrg()` reads `active-org-id` cookie; `getUserOrgs()` lists memberships
 - First sign-in: no orgs → redirect `/dashboard/org/new` → create org → dashboard
 - Env: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (build-time, Docker build arg), `CLERK_SECRET_KEY` (runtime). See `.env.example`.
+- Email templates: `clerk/emails/*.html` (Handlebars: `{{otp_code}}`, `{{requested_from}}`, `{{requested_at}}`, `{{current_year}}`), pushed with `CLERK_SECRET_KEY=… clerk/apply-email-templates.sh`. Not part of the deploy, and custom templates need a paid Clerk plan.
 - Never call `auth()`/`currentUser()` directly for app authorisation — go through `getCurrentUser()` so the local user id is used.
 
 ### Data Layer
