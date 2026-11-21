@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
+import type { Organisation, OrgRole, User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { ensureClerkOrg } from "@/lib/clerk-sync";
 
 export const ACTIVE_ORG_COOKIE = "active-org-id";
 
@@ -21,22 +23,46 @@ export async function getActiveOrg() {
       },
       include: { organisation: true },
     });
-    if (membership) return membership.organisation;
+    if (membership && !membership.organisation.deletedAt) {
+      return linkToClerk(membership.organisation, membership.role, user);
+    }
   }
 
   // Auto-select when user has exactly one org (no cookie needed)
-  const orgs = await getUserOrgs(user.id);
-  if (orgs.length === 1) return orgs[0];
+  const memberships = await userMemberships(user.id);
+  if (memberships.length === 1) {
+    return linkToClerk(memberships[0].organisation, memberships[0].role, user);
+  }
 
   return null;
 }
 
-export async function getUserOrgs(userId: string) {
-  const memberships = await prisma.orgMembership.findMany({
-    where: { userId },
+/**
+ * An org created before Clerk Organizations gets its Clerk org the first time
+ * an OWNER opens it (members are added then, or when they first sign in).
+ * Best effort: the dashboard works without the link.
+ */
+async function linkToClerk(org: Organisation, role: OrgRole, user: User): Promise<Organisation> {
+  if (org.clerkOrgId || role !== "OWNER" || !user.clerkId) return org;
+  try {
+    const clerkOrgId = await ensureClerkOrg(org, user.clerkId);
+    return { ...org, clerkOrgId };
+  } catch (err) {
+    console.error(`[clerk-sync] linking org ${org.id} failed:`, err);
+    return org;
+  }
+}
+
+function userMemberships(userId: string) {
+  return prisma.orgMembership.findMany({
+    where: { userId, organisation: { deletedAt: null } },
     include: { organisation: true },
     orderBy: { createdAt: "asc" },
   });
+}
+
+export async function getUserOrgs(userId: string) {
+  const memberships = await userMemberships(userId);
   return memberships.map((m) => m.organisation);
 }
 

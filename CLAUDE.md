@@ -68,6 +68,10 @@ Clerk (`@clerk/nextjs`) handles identity. The local Prisma `User` row (linked by
 - `src/lib/org.ts` — `getActiveOrg()` reads `active-org-id` cookie; `getUserOrgs()` lists memberships
 - First sign-in: no orgs → redirect `/dashboard/org/new` → create org → dashboard
 - Env: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (build-time, Docker build arg), `CLERK_SECRET_KEY` (runtime). See `.env.example`.
+- Organisations are mirrored with **Clerk Organizations** (`src/lib/clerk-sync.ts`). Clerk owns who is in which org and their role; the local `Organisation`/`OrgMembership` rows own everything else and stay the authorisation check. Link: `Organisation.clerkOrgId` (+ `privateMetadata.sammaOrgId` on Clerk orgs Samma created). Role map `org:admin ↔ OWNER`, else `MEMBER`.
+  - Clerk → Samma: `POST /api/webhooks/clerk` (Svix, `CLERK_WEBHOOK_SIGNING_SECRET`): `organization.*`, `organizationMembership.*`. Idempotent; out-of-order events are fine.
+  - Samma → Clerk: a pre-Clerk org gets its Clerk org the first time an OWNER opens the dashboard (`getActiveOrg` → `ensureClerkOrg`), and new orgs from `createOrganisation` immediately. Members who sign in later are added by `linkUserOrgsToClerk`.
+  - `organization.deleted` **locks** the org (`deletedAt`): data kept, API tokens rejected, no external scans, hidden from the dashboard. Never cascade-delete from a webhook.
 - Email templates: `clerk/emails/*.html` (Handlebars: `{{otp_code}}`, `{{requested_from}}`, `{{requested_at}}`, `{{current_year}}`), pushed with `CLERK_SECRET_KEY=… clerk/apply-email-templates.sh`. Not part of the deploy, and custom templates need a paid Clerk plan.
 - Never call `auth()`/`currentUser()` directly for app authorisation — go through `getCurrentUser()` so the local user id is used.
 

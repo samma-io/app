@@ -1,8 +1,10 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { Prisma, type User } from "@prisma/client";
+import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { provisionFromClerkUser } from "@/lib/users";
+import { linkUserOrgsToClerk } from "@/lib/clerk-sync";
 
 /**
  * Identity is handled by Clerk; the local `User` row (linked via `clerkId`)
@@ -18,7 +20,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   const existing = await prisma.user.findUnique({ where: { clerkId: userId } });
   if (existing) return existing;
 
-  return provisionUser(userId);
+  return provisionUser();
 });
 
 /** For server components / pages: redirects to sign-in when signed out. */
@@ -35,49 +37,16 @@ export async function requireUserForAction(): Promise<User> {
   return user;
 }
 
-async function provisionUser(clerkId: string): Promise<User> {
+async function provisionUser(): Promise<User> {
   const clerkUser = await currentUser();
   if (!clerkUser) throw new Error("Clerk user not found");
-
-  const primary = clerkUser.emailAddresses.find(
-    (e) => e.id === clerkUser.primaryEmailAddressId
-  );
-  // Only a verified email may be linked to (or create) a local account —
-  // otherwise signing up with someone else's address would take over their orgs.
-  if (!primary || primary.verification?.status !== "verified") {
-    throw new Error("A verified primary email address is required");
+  const { user, linkedLegacy } = await provisionFromClerkUser(clerkUser);
+  // A pre-Clerk user just linked: put their existing orgs into Clerk too.
+  // Best effort; the user still gets in if Clerk is briefly unavailable.
+  if (linkedLegacy) {
+    await linkUserOrgsToClerk(user).catch((err) =>
+      console.error("[clerk-sync] linking orgs for user failed:", err)
+    );
   }
-
-  const email = primary.emailAddress.trim().toLowerCase();
-  const name =
-    clerkUser.fullName ||
-    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
-    null;
-
-  // Link a pre-Clerk (NextAuth) user with the same email so they keep their orgs.
-  const byEmail = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
-  });
-  if (byEmail) {
-    if (byEmail.clerkId && byEmail.clerkId !== clerkId) {
-      throw new Error("This email is already linked to another account");
-    }
-    return prisma.user.update({
-      where: { id: byEmail.id },
-      data: { clerkId, name: byEmail.name ?? name },
-    });
-  }
-
-  try {
-    return await prisma.user.create({
-      data: { clerkId, email, name, emailVerified: new Date() },
-    });
-  } catch (e) {
-    // Concurrent first requests for the same user: the other one won.
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      const user = await prisma.user.findUnique({ where: { clerkId } });
-      if (user) return user;
-    }
-    throw e;
-  }
+  return user;
 }

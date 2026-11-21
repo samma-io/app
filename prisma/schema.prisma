@@ -65,10 +65,17 @@ model VerificationToken {
 // ─── Organisation ─────────────────────────────────────────────────────────────
 
 model Organisation {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  // Linked Clerk Organization (members, invites, billing live there).
+  clerkOrgId      String?   @unique
+  // Set when the org is deleted in Clerk: data is kept, the org is locked.
+  deletedAt       DateTime?
+  // Clerk Billing plan slug and the start of its current period (PR 3).
+  planSlug        String?
+  planPeriodStart DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   members   OrgMembership[]
   profiles  Profile[]
