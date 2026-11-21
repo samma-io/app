@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getScannerDb } from "@/lib/scanner-db";
 import { latestRuns } from "@/lib/scan-results";
 import { INTERNAL_SCANNERS } from "@/lib/constants";
+import { BILLING_CURRENCY } from "@/lib/external-scanners";
 import { DEMO_TARGETS, demoRuns, type DemoTarget } from "@/data/mock-scanner-runs";
 
 // Everything the scanner dashboard shows, scoped to one organisation.
@@ -116,7 +117,7 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
         targets: 0,
         runs30d: 0,
         pricePerScanCents: 0,
-        currency: "USD",
+        currency: BILLING_CURRENCY,
         spend30dCents: 0,
         demo: r.demo,
       };
@@ -173,7 +174,7 @@ async function getInternalRuns(
             outcome: r.outcome ?? "completed",
             findingCount: r.findingCount,
             costCents: 0,
-            currency: "USD",
+            currency: BILLING_CURRENCY,
             demo: false,
           }];
         }),
@@ -201,7 +202,7 @@ async function getInternalRuns(
         outcome: r.outcome,
         findingCount: r.findingCount,
         costCents: 0,
-        currency: "USD",
+        currency: BILLING_CURRENCY,
         demo: true,
       });
     }
