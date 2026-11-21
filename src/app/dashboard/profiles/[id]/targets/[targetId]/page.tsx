@@ -14,6 +14,10 @@ import {
 } from "@/components/dashboard/scan-results-accordion";
 import { ExternalScanResults } from "@/components/dashboard/external-scan-results";
 import { refreshExternalScans } from "@/lib/external-scans";
+import { latestRuns } from "@/lib/scan-results";
+import { externalResultsForTargets } from "@/lib/external-results";
+import { emptyCounts } from "@/lib/vulnerability-summary";
+import { SeverityChips } from "@/components/dashboard/severity-tiles";
 
 interface Props {
   params: Promise<{ id: string; targetId: string }>;
@@ -81,6 +85,17 @@ export default async function TargetDetailPage({ params }: Props) {
     // Scanner DB unavailable — show empty state
   }
 
+  // Open findings (latest run per scanner), internal and external.
+  const openCounts = emptyCounts();
+  {
+    const db = getScannerDb();
+    const internalRuns = db ? await latestRuns(db, [target.id]).catch(() => []) : [];
+    const external = await externalResultsForTargets(org.id, [target]);
+    for (const r of [...internalRuns, ...external.runs]) {
+      for (const s of Object.keys(openCounts) as (keyof typeof openCounts)[]) openCounts[s] += r.severity[s] ?? 0;
+    }
+  }
+
   const grouped = results.reduce<Record<string, ScanResult[]>>((acc, row) => {
     const key = row.scanner ?? "unknown";
     (acc[key] ??= []).push(row);
@@ -115,6 +130,14 @@ export default async function TargetDetailPage({ params }: Props) {
         </Link>
 
         <h1 className="text-2xl font-bold font-mono text-gray-900">{target.value}</h1>
+        <Link
+          href={`/dashboard/findings?target=${target.id}`}
+          className="mt-3 inline-flex items-center gap-3 text-sm text-gray-500 hover:text-samma-navy"
+        >
+          <span>Open findings</span>
+          <SeverityChips counts={openCounts} />
+          <span>View findings →</span>
+        </Link>
       </div>
 
       {/* Target metadata */}

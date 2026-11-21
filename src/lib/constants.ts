@@ -46,7 +46,21 @@ export const INTERNAL_SCANNERS: Record<string, string> = {
   "detect-dns-scanner": "DNS",
   "detect-whois-scanner": "WHOIS",
   "detect-traceroute-scanner": "Traceroute",
+  // The same scanners, by the name the detect-* images report in scan_results.
+  "tls-scanner": "TLS",
+  "http-headers-scanner": "HTTP security headers",
+  "http-redirect-scanner": "HTTP redirects",
+  "port-scanner": "Ports",
+  "ssh-banner-scanner": "SSH banner",
+  "dns-scanner": "DNS",
+  "whois-scanner": "WHOIS",
+  "traceroute-scanner": "Traceroute",
   nmap: "Nmap",
   nikto: "Nikto",
   tsunami: "Tsunami",
 };
+
+/** Human label for a scanner name from scan_results or an external run ("external:<id>"). */
+export function scannerDisplayName(scanner: string): string {
+  return INTERNAL_SCANNERS[scanner] ?? scanner;
+}

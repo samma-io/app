@@ -1,12 +1,13 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { OrganizationList, OrganizationSwitcher } from "@clerk/nextjs";
-import { LayoutDashboard, Target, Server, Key, Radar, Users, Settings } from "lucide-react";
+import { LayoutDashboard, ShieldAlert, Target, Server, Key, Radar, Users, Settings } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getActiveOrg } from "@/lib/org";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/findings", label: "Findings", icon: ShieldAlert },
   { href: "/dashboard/profiles", label: "Profiles", icon: Target },
   { href: "/dashboard/scanners", label: "Scanners", icon: Radar },
   { href: "/dashboard/clusters", label: "Clusters", icon: Server },
