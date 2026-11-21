@@ -1,9 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, requireUserForAction } from "@/lib/auth";
-import { getActiveOrg, getUserOrgs, ACTIVE_ORG_COOKIE } from "@/lib/org";
+import { getActiveOrg } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
@@ -11,7 +9,6 @@ import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
 import { getExternalScanner } from "@/lib/external-scanners";
 import { startExternalScans } from "@/lib/external-scans";
-import { createLocalOrg, ensureClerkOrg } from "@/lib/clerk-sync";
 import { encryptSecret, SecretBoxNotConfigured } from "@/lib/secret-box";
 import { Prisma, type ProfileType } from "@prisma/client";
 
@@ -375,62 +372,4 @@ export async function rescanExternal(targetId: string, connectionId: string) {
 
   revalidatePath(`/dashboard/profiles/${target.profileId}/targets/${target.id}`);
   revalidatePath("/dashboard/scanners");
-}
-
-// ─── Organisations ────────────────────────────────────────────────────────────
-
-export async function createOrganisation(name: string) {
-  const user = await requireUserForAction();
-
-  const org = await createLocalOrg(name);
-  await prisma.orgMembership.create({
-    data: { userId: user.id, organisationId: org.id, role: "OWNER" },
-  });
-  // Mirror it in Clerk (members, invites, billing). Best effort: if Clerk is
-  // down, it is linked the next time the owner opens the dashboard.
-  if (user.clerkId) {
-    await ensureClerkOrg(org, user.clerkId).catch((err) =>
-      console.error(`[clerk-sync] linking new org ${org.id} failed:`, err)
-    );
-  }
-
-  // Auto-select the new org
-  const cookieStore = await cookies();
-  cookieStore.set(ACTIVE_ORG_COOKIE, org.id, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
-
-  return org;
-}
-
-export async function setActiveOrgAction(organisationId: string) {
-  const user = await requireUserForAction();
-
-  // Validate membership
-  const membership = await prisma.orgMembership.findUnique({
-    where: {
-      userId_organisationId: {
-        userId: user.id,
-        organisationId,
-      },
-    },
-  });
-  if (!membership) throw new Error("Not a member of this organization");
-
-  const cookieStore = await cookies();
-  cookieStore.set(ACTIVE_ORG_COOKIE, organisationId, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
-}
-
-export async function getCurrentUserOrgs() {
-  const user = await getCurrentUser();
-  if (!user) return [];
-  return getUserOrgs(user.id);
 }

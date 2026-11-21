@@ -55,7 +55,8 @@ All routes use the Next.js App Router under `src/app/`. Key routes:
 - `/dashboard/clusters` — Connected clusters: name, Ready/Down (seen in the last 15 min), version, target count
 - `/dashboard/scanners` — Connect external scanners (vendor API key, encrypted with `SCANNER_SECRET_KEY`) and the scanner dashboard: internal + external scanners, runs, targets, cost. Catalog, prices and API URLs: `src/lib/external-scanners.ts` (`EXTERNAL_SCANNER_URL_<ID>` overrides the URL). External runs are real (`ExternalScanRun`, see below); internal runs come from TimescaleDB or demo data when it is unset
 - `/dashboard/tokens` — API token management
-- `/dashboard/org/new` — Create first organisation (redirected here on first sign-in)
+- `/dashboard/org/new` — Create an organisation (Clerk `<CreateOrganization>`)
+- `/dashboard/settings` — Organisation settings: Clerk org profile (general, members and invitations, billing) + billing details
 
 ### Auth (Clerk)
 
@@ -65,8 +66,8 @@ Clerk (`@clerk/nextjs`) handles identity. The local Prisma `User` row (linked by
 - `src/middleware.ts` — `clerkMiddleware`; `auth.protect()` on `/dashboard(.*)` and `/profile(.*)`; injects `x-pathname` header. `/api/v1/*` is not protected by Clerk — it uses API tokens.
 - `src/app/sign-in/[[...sign-in]]`, `src/app/sign-up/[[...sign-up]]` — Clerk `<SignIn />` / `<SignUp />`
 - Client components use `useAuth()` / `useUser()` / `useClerk().signOut()` from `@clerk/nextjs`; `<ClerkProvider>` wraps the root layout.
-- `src/lib/org.ts` — `getActiveOrg()` reads `active-org-id` cookie; `getUserOrgs()` lists memberships
-- First sign-in: no orgs → redirect `/dashboard/org/new` → create org → dashboard
+- `src/lib/org.ts` — `getActiveOrg()` = the active org of the Clerk session (`auth().orgId`), mapped to the local org by `resolveSessionOrg()` (local membership required; on a miss it is confirmed with the Clerk API, then mirrored). `getActiveOrgRole()` for OWNER-only actions.
+- Org UI is Clerk: `<OrganizationSwitcher>` in the sidebar (create/switch), `<OrganizationList>` when no org is active, `<CreateOrganization>` on `/dashboard/org/new`, and `/dashboard/settings/[[...rest]]` = `<OrganizationProfile>` (general, members + invitations, Clerk billing) plus Samma's own **Billing details** page (`billing*` columns on `Organisation`, `src/lib/billing-details.ts`, OWNER-only `saveBillingDetails`). Members page: `/dashboard/settings/organization-members`.
 - Env: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (build-time, Docker build arg), `CLERK_SECRET_KEY` (runtime). See `.env.example`.
 - Organisations are mirrored with **Clerk Organizations** (`src/lib/clerk-sync.ts`). Clerk owns who is in which org and their role; the local `Organisation`/`OrgMembership` rows own everything else and stay the authorisation check. Link: `Organisation.clerkOrgId` (+ `privateMetadata.sammaOrgId` on Clerk orgs Samma created). Role map `org:admin ↔ OWNER`, else `MEMBER`.
   - Clerk → Samma: `POST /api/webhooks/clerk` (Svix, `CLERK_WEBHOOK_SIGNING_SECRET`): `organization.*`, `organizationMembership.*`. Idempotent; out-of-order events are fine.

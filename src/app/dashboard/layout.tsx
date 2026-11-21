@@ -1,10 +1,9 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { LayoutDashboard, Target, Server, Key, Radar } from "lucide-react";
+import { OrganizationList, OrganizationSwitcher } from "@clerk/nextjs";
+import { LayoutDashboard, Target, Server, Key, Radar, Users, Settings } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { getActiveOrg, getUserOrgs } from "@/lib/org";
-import { OrgPickerClient } from "@/components/dashboard/org-picker-client";
+import { getActiveOrg } from "@/lib/org";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -12,6 +11,8 @@ const navItems = [
   { href: "/dashboard/scanners", label: "Scanners", icon: Radar },
   { href: "/dashboard/clusters", label: "Clusters", icon: Server },
   { href: "/dashboard/tokens", label: "API Tokens", icon: Key },
+  { href: "/dashboard/settings/organization-members", label: "Members", icon: Users },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default async function DashboardLayout({
@@ -19,30 +20,27 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
-
-  const orgs = await getUserOrgs(user.id);
-  const pathname = (await headers()).get("x-pathname") ?? "";
-  if (orgs.length === 0 && pathname !== "/dashboard/org/new") {
-    redirect("/dashboard/org/new");
-  }
-
-  // Render the org-creation page without the sidebar shell
-  if (orgs.length === 0) return <>{children}</>;
-
+  await requireUser();
   const activeOrg = await getActiveOrg();
+  const pathname = (await headers()).get("x-pathname") ?? "";
 
+  // Creating an org works without an active one.
+  if (!activeOrg && pathname === "/dashboard/org/new") return <>{children}</>;
+
+  // No org picked (or not a member any more): choose or create one in Clerk.
   if (!activeOrg) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4 max-w-md px-4">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Select an Organization
-          </h2>
-          <p className="text-gray-500">
-            Choose which organization to work in.
-          </p>
-          <OrgPickerClient orgs={orgs} />
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="space-y-4 text-center">
+          <h2 className="text-2xl font-bold text-gray-900">Choose an organization</h2>
+          <p className="text-gray-500">Pick the organization to work in, or create a new one.</p>
+          <div className="flex justify-center">
+            <OrganizationList
+              hidePersonal
+              afterSelectOrganizationUrl="/dashboard"
+              afterCreateOrganizationUrl="/dashboard"
+            />
+          </div>
         </div>
       </div>
     );
@@ -52,13 +50,20 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        <div className="px-4 py-4 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <div className="px-3 py-3 border-b border-gray-100">
+          <p className="px-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Organization
           </p>
-          <p className="text-sm font-medium text-gray-900 truncate mt-0.5">
-            {activeOrg.name}
-          </p>
+          <div className="mt-1">
+            <OrganizationSwitcher
+              hidePersonal
+              afterSelectOrganizationUrl="/dashboard"
+              afterCreateOrganizationUrl="/dashboard"
+              organizationProfileMode="navigation"
+              organizationProfileUrl="/dashboard/settings"
+              appearance={{ elements: { rootBox: "w-full", organizationSwitcherTrigger: "w-full justify-between" } }}
+            />
+          </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map(({ href, label, icon: Icon }) => (

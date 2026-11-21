@@ -139,18 +139,18 @@ async function addClerkMembership(organizationId: string, userId: string, role: 
 }
 
 /**
- * Creates the Clerk org for a local org that has none, with `creatorClerkId`
- * (an OWNER) as its admin, and adds every other member who has signed in with
- * Clerk. Members who sign in later are added by linkUserOrgsToClerk.
- * Only an OWNER may be the creator: the creator becomes a Clerk admin.
+ * Creates the Clerk org for a local org that has none and adds every member
+ * who has signed in with Clerk, each with their own role. `creatorClerkId`
+ * (optional) must be an OWNER: the creator becomes a Clerk admin. Members who
+ * sign in later are added by linkUserOrgsToClerk.
  */
-export async function ensureClerkOrg(org: Organisation, creatorClerkId: string): Promise<string> {
+export async function ensureClerkOrg(org: Organisation, creatorClerkId?: string): Promise<string> {
   if (org.clerkOrgId) return org.clerkOrgId;
 
   const client = await clerkClient();
   const created = await client.organizations.createOrganization({
     name: org.name,
-    createdBy: creatorClerkId,
+    ...(creatorClerkId ? { createdBy: creatorClerkId } : {}),
     privateMetadata: { sammaOrgId: org.id },
   });
 
@@ -189,8 +189,77 @@ export async function linkUserOrgsToClerk(user: User) {
   for (const m of memberships) {
     if (m.organisation.clerkOrgId) {
       await addClerkMembership(m.organisation.clerkOrgId, user.clerkId, m.role);
-    } else if (m.role === "OWNER") {
-      await ensureClerkOrg(m.organisation, user.clerkId);
+    } else {
+      // Created with this user as admin only if they own it; otherwise with no
+      // creator, and every signed-in member keeps their own role.
+      await ensureClerkOrg(m.organisation, m.role === "OWNER" ? user.clerkId : undefined);
     }
   }
+}
+
+/**
+ * Creates Clerk orgs for the user's local orgs that have none yet, so they
+ * appear in the org list. Only touches Clerk when there is something to link.
+ */
+export async function linkUnlinkedOrgs(user: User) {
+  if (!user.clerkId) return;
+  const unlinked = await prisma.orgMembership.findMany({
+    where: { userId: user.id, organisation: { clerkOrgId: null, deletedAt: null } },
+    include: { organisation: true },
+  });
+  for (const m of unlinked) {
+    await ensureClerkOrg(m.organisation, m.role === "OWNER" ? user.clerkId : undefined);
+  }
+}
+
+/**
+ * The org that is active in the user's Clerk session, as a local org.
+ * Normally the webhook has mirrored it already; if not (just created, or the
+ * webhook is late), the membership is confirmed with the Clerk API before it is
+ * mirrored, so a session claim alone never creates access.
+ * Returns null if the user is not a member or the org is locked.
+ */
+export async function resolveSessionOrg(
+  user: User,
+  clerkOrgId: string,
+  sessionRole: string | null
+): Promise<Organisation | null> {
+  if (!user.clerkId) return null;
+
+  let org = await prisma.organisation.findUnique({ where: { clerkOrgId } });
+  let membership = org
+    ? await prisma.orgMembership.findUnique({
+        where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
+      })
+    : null;
+
+  if (!org || !membership) {
+    const client = await clerkClient();
+    const { data } = await client.organizations.getOrganizationMembershipList({
+      organizationId: clerkOrgId,
+      userId: [user.clerkId],
+    });
+    const m = data[0];
+    if (!m) return null;
+    const meta = (m.organization.privateMetadata ?? {}) as Record<string, unknown>;
+    org = await resolveLocalOrg({
+      id: clerkOrgId,
+      name: m.organization.name,
+      sammaOrgId: typeof meta.sammaOrgId === "string" ? meta.sammaOrgId : undefined,
+    });
+    const role = toLocalRole(m.role);
+    membership = await prisma.orgMembership.upsert({
+      where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
+      create: { userId: user.id, organisationId: org.id, role },
+      update: { role },
+    });
+  } else if (sessionRole && toLocalRole(sessionRole) !== membership.role) {
+    // Role changed in Clerk and the webhook has not landed yet.
+    await prisma.orgMembership.update({
+      where: { id: membership.id },
+      data: { role: toLocalRole(sessionRole) },
+    });
+  }
+
+  return org.deletedAt ? null : org;
 }
