@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cn, severityColor } from "@/lib/utils";
-import { SEVERITIES } from "@/lib/scan-results";
+import { SEVERITIES } from "@/lib/severity";
 
 const LABEL: Record<string, string> = {
   CRITICAL: "Critical",
