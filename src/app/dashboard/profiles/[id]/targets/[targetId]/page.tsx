@@ -12,6 +12,8 @@ import {
   ScanResultsAccordion,
   type ScanResult,
 } from "@/components/dashboard/scan-results-accordion";
+import { ExternalScanResults } from "@/components/dashboard/external-scan-results";
+import { refreshExternalScans } from "@/lib/external-scans";
 
 interface Props {
   params: Promise<{ id: string; targetId: string }>;
@@ -32,6 +34,23 @@ export default async function TargetDetailPage({ params }: Props) {
   });
 
   if (!target) notFound();
+
+  // ── External scanners ───────────────────────────────────────────────────────
+  // Fetch results of runs still in progress before reading them.
+  await refreshExternalScans(org.id, { targetId });
+  const [enabledScanners, externalRuns] = await Promise.all([
+    prisma.profileExternalScanner.findMany({
+      where: { profileId: target.profileId, connection: { organisationId: org.id } },
+      include: { connection: { select: { id: true, name: true } } },
+      orderBy: { enabledAt: "asc" },
+    }),
+    prisma.externalScanRun.findMany({
+      where: { targetId, organisationId: org.id },
+      include: { connection: { select: { name: true } } },
+      orderBy: { requestedAt: "desc" },
+      take: 20,
+    }),
+  ]);
 
   // ── Scanner DB ──────────────────────────────────────────────────────────────
   let results: ScanResult[] = [];
@@ -158,6 +177,31 @@ export default async function TargetDetailPage({ params }: Props) {
               <dd className="font-mono text-gray-400 text-xs">{target.id}</dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      {/* External scans */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold text-gray-900">External scans</h2>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ExternalScanResults
+            targetId={target.id}
+            canScan={target.scannerStatus !== "LOCAL"}
+            scanners={enabledScanners.map((e) => ({ connectionId: e.connection.id, name: e.connection.name }))}
+            runs={externalRuns.map((r) => ({
+              id: r.id,
+              connectionName: r.connection.name,
+              status: r.status,
+              trigger: r.trigger,
+              requestedAt: r.requestedAt,
+              finishedAt: r.finishedAt,
+              result: r.result,
+              findingCount: r.findingCount,
+              error: r.error,
+            }))}
+          />
         </CardContent>
       </Card>
 

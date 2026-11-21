@@ -13,6 +13,7 @@ import { GUIDE_LINKS } from "@/lib/constants";
 import { formatPrice, getExternalScanner } from "@/lib/external-scanners";
 import { isSecretBoxConfigured } from "@/lib/secret-box";
 import { getScannerDashboard } from "@/lib/scanner-runs";
+import { refreshExternalScans } from "@/lib/external-scans";
 
 // Run times and the 30-day window depend on the time of the request.
 export const dynamic = "force-dynamic";
@@ -41,6 +42,9 @@ function DemoBadge() {
 export default async function ScannersPage() {
   const org = await getActiveOrg();
   if (!org) redirect("/dashboard");
+
+  // Fetch results of external runs still in progress before reading them.
+  await refreshExternalScans(org.id);
 
   const [connections, dashboard] = await Promise.all([
     prisma.externalScannerConnection.findMany({
@@ -220,7 +224,7 @@ export default async function ScannersPage() {
             {internalIsDemo
               ? "No scan results database here, so internal runs are demo data. "
               : "Internal runs show the latest run per scanner and target. "}
-            External runs are demo data until external scanners are run for real.
+            External runs show every run; running ones are checked again each time this page opens.
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -263,6 +267,8 @@ export default async function ScannersPage() {
                         className={
                           r.outcome === "failed"
                             ? "bg-red-100 text-red-800"
+                            : r.outcome === "running"
+                            ? "bg-blue-100 text-blue-800"
                             : "bg-green-100 text-green-800"
                         }
                       >

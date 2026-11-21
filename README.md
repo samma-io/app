@@ -39,6 +39,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `OPERATOR_API_URL` | URL of the Kubernetes operator Flask API |
 | `OPERATOR_API_TOKEN` | Bearer token for the operator Flask API — required whenever `OPERATOR_API_URL` is set |
 | `SCANNER_SECRET_KEY` | 32-byte base64 key (`openssl rand -base64 32`) that encrypts external scanner API keys. Without it, external scanners cannot be connected |
+| `EXTERNAL_SCANNER_URL_<ID>` | Optional. Overrides where an external scanner from the catalog is called, e.g. `EXTERNAL_SCANNER_URL_SAMMA_DEMO=http://external-scanner:8080`. The scanner API is in `samma-io/external-scanner` |
 
 ## Architecture
 

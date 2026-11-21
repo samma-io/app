@@ -5,6 +5,7 @@ import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/oper
 import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
 import { targetSelect } from "@/lib/api-targets";
+import { startExternalScans } from "@/lib/external-scans";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -153,6 +154,9 @@ export async function POST(req: NextRequest) {
     await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } });
   }
 
+  await startExternalScans(target.id, "new-target")
+    .catch((err) => console.error("[external-scans] start failed:", err instanceof Error ? err.message : err));
+
   return NextResponse.json(
     { ...target, scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
     { status: 201 }
@@ -244,6 +248,9 @@ export async function PUT(req: NextRequest) {
   if (deployed) {
     await prisma.target.update({ where: { id: target.id }, data: { scannerStatus: "DEPLOYED" } });
   }
+
+  await startExternalScans(target.id, "new-target")
+    .catch((err) => console.error("[external-scans] start failed:", err instanceof Error ? err.message : err));
 
   return NextResponse.json(
     { ...target, scannerStatus: deployed ? "DEPLOYED" : "READY_TO_DEPLOY" },
