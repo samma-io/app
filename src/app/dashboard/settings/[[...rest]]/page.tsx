@@ -12,15 +12,6 @@ export default async function SettingsPage() {
 
   const billing = Object.fromEntries(BILLING_FIELDS.map((k) => [k, org[k]])) as BillingDetails;
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Organization settings</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Name and logo, members and invitations, and billing for {org.name}.
-        </p>
-      </div>
-      <OrgSettings billing={billing} canEdit={role === "OWNER"} />
-    </div>
-  );
+  // Clerk's profile has its own title and navigation; no page header here.
+  return <OrgSettings billing={billing} canEdit={role === "OWNER"} />;
 }
