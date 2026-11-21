@@ -17,7 +17,8 @@ import { Prisma, PrismaClient } from "@prisma/client";
  * query on recent chunks. Scanners run weekly, so this is ample.
  */
 
-export const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as const;
+import { SEVERITIES } from "@/lib/severity";
+export { SEVERITIES };
 const LOOKBACK = Prisma.sql`now() - interval '90 days'`;
 const LEGACY_BATCH = Prisma.sql`interval '1 hour'`;
 
