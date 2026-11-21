@@ -36,6 +36,7 @@ export async function startExternalScans(
     include: {
       profile: {
         include: {
+          organisation: { select: { deletedAt: true } },
           externalScanners: {
             where: onlyConnectionId ? { connectionId: onlyConnectionId } : undefined,
             include: { connection: true },
@@ -44,7 +45,8 @@ export async function startExternalScans(
       },
     },
   });
-  if (!target || target.scannerStatus === "LOCAL") return 0;
+  // Locked orgs (deleted in Clerk) start nothing.
+  if (!target || target.scannerStatus === "LOCAL" || target.profile.organisation.deletedAt) return 0;
 
   const organisationId = target.profile.organisationId;
   let started = 0;

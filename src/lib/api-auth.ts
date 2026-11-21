@@ -32,10 +32,16 @@ export async function authenticateApiToken(
   }
 
   // Indexed lookup on the SHA-256 hash; raw tokens are never stored.
-  const token = await prisma.apiToken.findUnique({ where: { tokenHash: hashToken(raw) } });
-  if (!token) {
+  const found = await prisma.apiToken.findUnique({
+    where: { tokenHash: hashToken(raw) },
+    include: { organisation: { select: { deletedAt: true } } },
+  });
+  // A locked (deleted in Clerk) org's tokens stop working.
+  if (!found || found.organisation.deletedAt) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
+  const { organisation, ...token } = found;
+  void organisation;
 
   if (opts.write && token.readOnly) {
     return {
