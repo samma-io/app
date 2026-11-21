@@ -1,12 +1,9 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 import { Shield } from "lucide-react";
-import { authOptions } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { CreateOrgForm } from "@/components/dashboard/create-org-form";
 
 export default async function NewOrgPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect("/sign-in");
+  await requireUser();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

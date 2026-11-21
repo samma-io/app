@@ -1,72 +1,83 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { type AuthOptions } from "next-auth";
-import EmailProvider from "next-auth/providers/email";
+import { cache } from "react";
+import { redirect } from "next/navigation";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { Prisma, type User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { User } from "@prisma/client";
 
-export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    EmailProvider({
-      server: {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
-        secure: process.env.EMAIL_SERVER_SECURE === "true",
-        tls: { rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== "false" },
-        auth: {
-          user: process.env.EMAIL_SERVER_USER,
-          pass: process.env.EMAIL_SERVER_PASSWORD,
-        },
-      },
-      from: process.env.EMAIL_FROM,
-    }),
-  ],
-  session: { strategy: "database" },
-  pages: {
-    signIn: "/sign-in",
-  },
-  callbacks: {
-    session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-      }
-      return session;
-    },
-  },
-  events: {
-    async signIn({ user }) {
-      if (!user.id) return;
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        include: { memberships: true },
-      }) as (User & { memberships: { id: string }[] }) | null;
-      if (dbUser?.pendingOrgName && dbUser.memberships.length === 0) {
-        const orgName = dbUser.pendingOrgName;
-        await prisma.$transaction([
-          prisma.organisation.create({
-            data: {
-              name: orgName,
-              members: { create: { userId: dbUser.id, role: "OWNER" } },
-              profiles: { create: { name: "Default", type: "SMALL", isDefault: true } },
-            },
-          }),
-          prisma.user.update({
-            where: { id: dbUser.id },
-            data: { pendingOrgName: null },
-          }),
-        ]);
-      }
-    },
-  },
-};
+/**
+ * Identity is handled by Clerk; the local `User` row (linked via `clerkId`)
+ * stays the anchor for org memberships and everything else in the app.
+ *
+ * Returns the local user for the signed-in Clerk session, provisioning it on
+ * first use. Returns null only when nobody is signed in.
+ */
+export const getCurrentUser = cache(async (): Promise<User | null> => {
+  const { userId } = await auth();
+  if (!userId) return null;
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-    };
+  const existing = await prisma.user.findUnique({ where: { clerkId: userId } });
+  if (existing) return existing;
+
+  return provisionUser(userId);
+});
+
+/** For server components / pages: redirects to sign-in when signed out. */
+export async function requireUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/sign-in");
+  return user;
+}
+
+/** For server actions: throws when signed out. */
+export async function requireUserForAction(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  return user;
+}
+
+async function provisionUser(clerkId: string): Promise<User> {
+  const clerkUser = await currentUser();
+  if (!clerkUser) throw new Error("Clerk user not found");
+
+  const primary = clerkUser.emailAddresses.find(
+    (e) => e.id === clerkUser.primaryEmailAddressId
+  );
+  // Only a verified email may be linked to (or create) a local account —
+  // otherwise signing up with someone else's address would take over their orgs.
+  if (!primary || primary.verification?.status !== "verified") {
+    throw new Error("A verified primary email address is required");
+  }
+
+  const email = primary.emailAddress.trim().toLowerCase();
+  const name =
+    clerkUser.fullName ||
+    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
+    null;
+
+  // Link a pre-Clerk (NextAuth) user with the same email so they keep their orgs.
+  const byEmail = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (byEmail) {
+    if (byEmail.clerkId && byEmail.clerkId !== clerkId) {
+      throw new Error("This email is already linked to another account");
+    }
+    return prisma.user.update({
+      where: { id: byEmail.id },
+      data: { clerkId, name: byEmail.name ?? name },
+    });
+  }
+
+  try {
+    return await prisma.user.create({
+      data: { clerkId, email, name, emailVerified: new Date() },
+    });
+  } catch (e) {
+    // Concurrent first requests for the same user: the other one won.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const user = await prisma.user.findUnique({ where: { clerkId } });
+      if (user) return user;
+    }
+    throw e;
   }
 }
