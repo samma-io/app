@@ -46,6 +46,7 @@ docker compose down
 All routes use the Next.js App Router under `src/app/`. Key routes:
 
 - `/` — Marketing/hero landing page
+- `/integration` — Public page for clients and partners: operator → samma.io → partner scanners → results back to the cluster (collector metrics/logs), with the partner API contract
 - `/sign-in` — Magic link email form (NextAuth)
 - `/dashboard` — Main dashboard (protected)
 - `/dashboard/profiles` — Scan profiles list
@@ -105,6 +106,8 @@ An `/api/v1` call carrying `X-Samma-Cluster: <name>` (and optionally `X-Samma-Ve
 ## External scanner runs
 
 `src/lib/external-scans.ts`. A target added (dashboard or API POST/PUT) to a profile with external scanners enabled, or **Rescan** on the target page (`rescanExternal` action), calls `POST {apiUrl}/scans` with the connection's decrypted key (`src/lib/external-scanner-client.ts`) and stores an `ExternalScanRun` with the scanner's uuid. LOCAL targets are never sent. Results are pulled, not pushed: opening `/dashboard/scanners` or a target page runs `refreshExternalScans()`, which `GET`s `{apiUrl}/scans/<uuid>` for RUNNING runs (at most every 5 s; 24 h → FAILED). Only `application/json` results are accepted (1 MB cap); `formatExternalResult()` is the one place the format is read (a `findings` array becomes a table, anything else is shown as raw JSON). Only COMPLETED runs are charged. The scanner itself is `samma-io/external-scanner`.
+
+`GET /api/v1/targets/<id>/results` also returns the latest finished external run per connection (`src/lib/external-results.ts`) as scanner `external:<catalog id>` (outcome `succeeded`/`failed`, partner `detail` in `evidence`, which the collector never logs), and refreshes the target's running runs first, so the operator's collector brings partner results into the cluster without anyone opening the dashboard. With no scanner DB it still answers with the external part.
 
 ## Target Status Fields
 

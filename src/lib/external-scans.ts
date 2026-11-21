@@ -146,7 +146,7 @@ async function refreshRun(run: Prisma.ExternalScanRunGetPayload<{ include: { con
   await prisma.externalScanRun.update({ where: { id: run.id }, data });
 }
 
-export type FormattedFinding = { title: string; severity: string; detail: string };
+export type FormattedFinding = { id: string; title: string; severity: string; detail: string };
 export type FormattedResult = { findings: FormattedFinding[] } | { raw: string } | null;
 
 /** The one place the result format is interpreted: a findings list when there is one, raw JSON otherwise. */
@@ -158,7 +158,7 @@ export function formatExternalResult(result: unknown): FormattedResult {
       findings: findings.map((f) => {
         const o = (f ?? {}) as Record<string, unknown>;
         const str = (v: unknown) => (typeof v === "string" ? v : v === undefined ? "" : JSON.stringify(v));
-        return { title: str(o.title) || "Finding", severity: str(o.severity) || "info", detail: str(o.detail) };
+        return { id: str(o.id), title: str(o.title) || "Finding", severity: str(o.severity) || "info", detail: str(o.detail) };
       }),
     };
   }
