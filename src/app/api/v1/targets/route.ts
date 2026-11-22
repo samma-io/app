@@ -6,6 +6,7 @@ import { isLocalTarget } from "@/lib/network";
 import { checkReachability } from "@/lib/reachability";
 import { targetSelect } from "@/lib/api-targets";
 import { startExternalScans } from "@/lib/external-scans";
+import { targetsCreated, withMetrics } from "@/lib/metrics/instrument";
 
 async function resolveProfile(orgId: string, profileId: unknown) {
   if (profileId && typeof profileId === "string") {
@@ -23,7 +24,7 @@ async function resolveProfile(orgId: string, profileId: unknown) {
  * Lists the organisation's targets, newest first. Cursor-paginated: pass the
  * returned nextCursor to get the next page.
  */
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const auth = await authenticateApiToken(req);
   if (!auth.ok) return auth.response;
 
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   // 1. Authenticate (read-only tokens are rejected for writes)
   const auth = await authenticateApiToken(req, { write: true });
   if (!auth.ok) return auth.response;
@@ -142,6 +143,7 @@ export async function POST(req: NextRequest) {
       clusterId: await auth.clusterId,
     },
   });
+  targetsCreated.inc({ source: "api" });
 
   if (local) {
     return NextResponse.json({ ...target, scannerStatus: "LOCAL" }, { status: 201 });
@@ -163,7 +165,7 @@ export async function POST(req: NextRequest) {
   );
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePut(req: NextRequest) {
   // 1. Authenticate (read-only tokens are rejected for writes)
   const auth = await authenticateApiToken(req, { write: true });
   if (!auth.ok) return auth.response;
@@ -237,6 +239,7 @@ export async function PUT(req: NextRequest) {
       clusterId: await auth.clusterId,
     },
   });
+  targetsCreated.inc({ source: "api" });
 
   if (local) {
     return NextResponse.json({ ...target, scannerStatus: "LOCAL" }, { status: 200 });
@@ -258,7 +261,7 @@ export async function PUT(req: NextRequest) {
   );
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDelete(req: NextRequest) {
   // 1. Authenticate (read-only tokens are rejected for writes)
   const auth = await authenticateApiToken(req, { write: true });
   if (!auth.ok) return auth.response;
@@ -317,3 +320,8 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ deleted: target.id }, { status: 200 });
 }
+
+export const GET = withMetrics("/api/v1/targets", handleGet);
+export const POST = withMetrics("/api/v1/targets", handlePost);
+export const PUT = withMetrics("/api/v1/targets", handlePut);
+export const DELETE = withMetrics("/api/v1/targets", handleDelete);

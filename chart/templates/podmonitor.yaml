@@ -1,0 +1,23 @@
+{{- /*
+Scraped by kube-prometheus-stack (namespace monitoring selects all PodMonitors).
+A PodMonitor, not a ServiceMonitor: ArgoCD rewrites app.kubernetes.io/instance on
+the Service to the Application name, so a Service selector would never match.
+Not gated on .Capabilities: the deploy workflow renders with offline `helm template`.
+*/ -}}
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "samma-app.fullname" . }}
+  labels:
+    {{- include "samma-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "samma-app.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: http
+      path: /api/metrics
+      interval: {{ .Values.metrics.interval }}
+      scrapeTimeout: {{ .Values.metrics.scrapeTimeout }}
+{{- end }}

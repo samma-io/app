@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/profile(.*)"]);
 
-export default clerkMiddleware(async (auth, request) => {
+// Probes and the Prometheus scrape (GET only, no session): answered without
+// Clerk, so they keep working whatever state Clerk or its keys are in.
+const INFRA_PATHS = new Set(["/api/health", "/api/ready", "/api/metrics"]);
+
+const withClerk = clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
@@ -15,6 +19,11 @@ export default clerkMiddleware(async (auth, request) => {
   response.headers.set("x-pathname", request.nextUrl.pathname);
   return response;
 });
+
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  if (INFRA_PATHS.has(request.nextUrl.pathname)) return NextResponse.next();
+  return withClerk(request, event);
+}
 
 export const config = {
   matcher: [

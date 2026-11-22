@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getScanResult, startScan } from "@/lib/external-scanner-client";
+import { scansStarted } from "@/lib/metrics/instrument";
 
 // Runs of external scanners (see ExternalScanRun in prisma/schema.prisma).
 // Started when a target is added to a profile with the scanner enabled, or on
@@ -60,6 +61,7 @@ export async function startExternalScans(
           data: { organisationId, connectionId: connection.id, targetId: target.id, externalId, trigger },
         });
         started++;
+        scansStarted.inc({ kind: "external", trigger });
       } catch (err) {
         console.error(`[external-scans] start failed for connection ${connection.id}: ${errorMessage(err)}`);
         await prisma.externalScanRun.create({

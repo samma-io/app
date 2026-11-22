@@ -5,6 +5,7 @@ import { getScannerDb } from "@/lib/scanner-db";
 import { latestFindings, latestRuns, parseSeverities, SEVERITIES, type Finding } from "@/lib/scan-results";
 import { externalResultsForTargets } from "@/lib/external-results";
 import { refreshExternalScans } from "@/lib/external-scans";
+import { withMetrics } from "@/lib/metrics/instrument";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Findings from the latest run of each scanner on the target, internal
  * (scan_results) and external partner scanners ("external:<id>").
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleGet(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateApiToken(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
@@ -74,3 +75,5 @@ function sortFindings(findings: Finding[]): Finding[] {
   };
   return [...findings].sort((a, b) => rank(a.severity) - rank(b.severity) || b.time.localeCompare(a.time));
 }
+
+export const GET = withMetrics("/api/v1/targets/[id]/results", handleGet);

@@ -1,4 +1,5 @@
 import type { ProfileType } from "@prisma/client";
+import { scansStarted, timed } from "@/lib/metrics/instrument";
 
 /**
  * Resolves the operator API base URL and bearer token for an operator call.
@@ -48,22 +49,30 @@ export async function registerTargetWithOperator(
 
   const profile = profileType === "FULL" ? "all" : "detect";
 
-  const res = await fetch(`${auth.baseUrl}/target`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${auth.token}`,
-    },
-    body: JSON.stringify({
-      target: targetValue,
-      samma_io_id: targetId,
-      profile,
-      samma_io_tags: `samma,${profileId}`,
-      samma_io_json: JSON.stringify({ profileId }),
-    }),
-  });
+  const accepted = (r: Response) => r.ok || r.status === 207;
+  const res = await timed(
+    "operator",
+    "register_target",
+    () =>
+      fetch(`${auth.baseUrl}/target`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify({
+          target: targetValue,
+          samma_io_id: targetId,
+          profile,
+          samma_io_tags: `samma,${profileId}`,
+          samma_io_json: JSON.stringify({ profileId }),
+        }),
+      }),
+    accepted
+  );
 
-  return res.ok || res.status === 207;
+  if (accepted(res)) scansStarted.inc({ kind: "internal", trigger: "deploy" });
+  return accepted(res);
 }
 
 /**
@@ -96,14 +105,20 @@ export async function removeTargetFromOperator(
   if (!auth) return "not_configured";
 
   try {
-    const res = await fetch(`${auth.baseUrl}/target`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({ target: targetValue }),
-    });
+    const res = await timed(
+      "operator",
+      "remove_target",
+      () =>
+        fetch(`${auth.baseUrl}/target`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify({ target: targetValue }),
+        }),
+      (r) => r.ok || r.status === 404
+    );
 
     if (res.ok || res.status === 404) return "removed";
     console.error(`[operator] remove failed with status ${res.status} for target "${targetValue}"`);

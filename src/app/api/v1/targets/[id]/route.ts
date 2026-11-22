@@ -4,11 +4,12 @@ import { authenticateApiToken } from "@/lib/api-auth";
 import { targetSelect } from "@/lib/api-targets";
 import { getScannerDb } from "@/lib/scanner-db";
 import { latestRuns } from "@/lib/scan-results";
+import { withMetrics } from "@/lib/metrics/instrument";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/v1/targets/:id — one target plus the latest run of each scanner. */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleGet(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateApiToken(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
@@ -29,3 +30,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Scan results unavailable" }, { status: 503 });
   }
 }
+
+export const GET = withMetrics("/api/v1/targets/[id]", handleGet);

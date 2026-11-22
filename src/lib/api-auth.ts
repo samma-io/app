@@ -3,6 +3,7 @@ import type { ApiToken } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { clusterClaim, touchCluster } from "@/lib/clusters";
+import { apiTokenAuth } from "@/lib/metrics/instrument";
 
 export type ApiAuth =
   | {
@@ -28,6 +29,7 @@ export async function authenticateApiToken(
     : null;
 
   if (!raw) {
+    apiTokenAuth.inc({ result: "unauthorized" });
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
 
@@ -38,17 +40,21 @@ export async function authenticateApiToken(
   });
   // A locked (deleted in Clerk) org's tokens stop working.
   if (!found || found.organisation.deletedAt) {
+    apiTokenAuth.inc({ result: "unauthorized" });
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
   const { organisation, ...token } = found;
   void organisation;
 
   if (opts.write && token.readOnly) {
+    apiTokenAuth.inc({ result: "read_only" });
     return {
       ok: false,
       response: NextResponse.json({ error: "This API token is read-only" }, { status: 403 }),
     };
   }
+
+  apiTokenAuth.inc({ result: "ok" });
 
   // Fire-and-forget so lookups stay fast.
   prisma.apiToken

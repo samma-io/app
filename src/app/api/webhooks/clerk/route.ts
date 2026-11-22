@@ -6,10 +6,11 @@ import {
   upsertMembershipFromClerk,
   upsertOrgFromClerk,
 } from "@/lib/clerk-sync";
+import { withMetrics } from "@/lib/metrics/instrument";
 
 // Clerk → Samma org sync (Svix-signed, secret CLERK_WEBHOOK_SIGNING_SECRET).
 // Handlers are idempotent; a 5xx makes Clerk retry.
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   let evt;
   try {
     evt = await verifyWebhook(req);
@@ -43,3 +44,5 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withMetrics("/api/webhooks/clerk", handlePost);
