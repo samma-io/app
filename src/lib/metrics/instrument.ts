@@ -94,3 +94,15 @@ export const requestErrors = counter({
   help: "Uncaught server errors reported by Next.js, by kind (render/route/action/middleware).",
   labelNames: ["kind"],
 });
+
+// Counted from Clerk webhook events (src/app/api/webhooks/clerk/route.ts).
+// Nothing about the user or the session is kept.
+export const signups = counter({
+  name: "samma_app_signups_total",
+  help: "Users created in Clerk (user.created webhook events).",
+});
+
+export const logins = counter({
+  name: "samma_app_logins_total",
+  help: "Sign-ins (session.created webhook events from Clerk).",
+});

@@ -17,11 +17,24 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const existing = await prisma.user.findUnique({ where: { clerkId: userId } });
-  if (existing) return existing;
-
-  return provisionUser();
+  const user =
+    (await prisma.user.findUnique({ where: { clerkId: userId } })) ?? (await provisionUser());
+  touchLastSeen(user);
+  return user;
 });
+
+// How often an active user's lastSeenAt is moved: enough for daily/weekly/
+// monthly active-user counts without a write on every request.
+const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Fire-and-forget, like ApiToken.lastUsedAt: a failed write never blocks a request. */
+function touchLastSeen(user: User): void {
+  const now = Date.now();
+  if (user.lastSeenAt && now - user.lastSeenAt.getTime() < LAST_SEEN_INTERVAL_MS) return;
+  prisma.user
+    .update({ where: { id: user.id }, data: { lastSeenAt: new Date(now) } })
+    .catch(() => {});
+}
 
 /** For server components / pages: redirects to sign-in when signed out. */
 export async function requireUser(): Promise<User> {
