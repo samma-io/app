@@ -135,6 +135,7 @@ Prometheus metrics with `prom-client`, code in `src/lib/metrics/`:
 - `GET /api/health` (liveness, no database) and `GET /api/ready` (readiness, `SELECT 1` on the app database). `src/middleware.ts` answers these three paths without Clerk.
 - `registry.ts` — one registry on `globalThis`; create metrics only through its `counter()` / `gauge()` / `histogram()` helpers.
 - `instrument.ts` — `withMetrics(routeTemplate, handler)` for route handlers, `timed(dependency, op, fn)` for outbound calls, and the event counters. A new `/api` route should be exported through `withMetrics`.
+- Users: `User.createdAt` and `User.lastSeenAt` (moved by `getCurrentUser()` at most every 5 minutes) feed `samma_app_users_new` / `samma_app_users_active`. `samma_app_signups_total` and `samma_app_logins_total` count Clerk `user.created` / `session.created` webhook events, which must be enabled on the webhook endpoint in Clerk.
 - `business.ts` — `samma_app_*` gauges from the app database and `scan_results`, refreshed at most once a minute. `samma_app_business_metrics_up{db}` is 0 when a database cannot be read.
 
 **Labels are fixed, small sets. Never put an organisation, user, target, token or finding in a label**: metrics leave the app's access control. Queries on `scan_results` must be time-bounded.

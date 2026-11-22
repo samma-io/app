@@ -20,6 +20,8 @@ model User {
   emailVerified  DateTime?
   image          String?
   pendingOrgName String?
+  createdAt      DateTime  @default(now()) // rows older than this column carry its migration date
+  lastSeenAt     DateTime? // last authenticated request, moved at most every 5 minutes (src/lib/auth.ts)
 
   accounts    Account[]
   sessions    Session[]

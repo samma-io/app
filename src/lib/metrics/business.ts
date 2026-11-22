@@ -35,6 +35,23 @@ const up = gauge({
   collect,
 });
 const users = gauge({ name: "samma_app_users", help: "Users.", collect });
+const WINDOWS = [
+  ["1d", DAY_MS],
+  ["7d", 7 * DAY_MS],
+  ["30d", 30 * DAY_MS],
+] as const;
+const usersActive = gauge({
+  name: "samma_app_users_active",
+  help: "Users with an authenticated dashboard request in the window (1d/7d/30d).",
+  labelNames: ["window"],
+  collect,
+});
+const usersNew = gauge({
+  name: "samma_app_users_new",
+  help: "Users created in the window (1d/7d/30d).",
+  labelNames: ["window"],
+  collect,
+});
 const organisations = gauge({
   name: "samma_app_organisations",
   help: "Organisations by state (active/locked; locked = deleted in Clerk).",
@@ -196,6 +213,20 @@ async function refreshApp(): Promise<void> {
     ]);
 
     users.set(userCount);
+    const windowCounts = await Promise.all(
+      WINDOWS.map(async ([window, ms]) => {
+        const since = new Date(now.getTime() - ms);
+        const [active, created] = await Promise.all([
+          prisma.user.count({ where: { lastSeenAt: { gte: since } } }),
+          prisma.user.count({ where: { createdAt: { gte: since } } }),
+        ]);
+        return { window, active, created };
+      })
+    );
+    for (const w of windowCounts) {
+      usersActive.set({ window: w.window }, w.active);
+      usersNew.set({ window: w.window }, w.created);
+    }
     organisations.set({ state: "active" }, activeOrgs);
     organisations.set({ state: "locked" }, lockedOrgs);
 
