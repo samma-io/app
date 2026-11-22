@@ -5,7 +5,7 @@ import { CopyButton } from "@/components/dashboard/copy-button";
 
 /** A freshly created or rotated SIEM key, shown once, with where it goes. */
 export function SiemKeyReveal({ siemKey, onDone }: { siemKey: string; onDone?: () => void }) {
-  const values = `samma:\n  dashboard:\n    key: ${siemKey}`;
+  const values = `dashboard:\n  enabled: true\n  key: ${siemKey}`;
   return (
     <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-start gap-2">
@@ -28,8 +28,9 @@ export function SiemKeyReveal({ siemKey, onDone }: { siemKey: string; onDone?: (
           <CopyButton value={values} />
         </div>
         <p className="mt-2 text-xs text-amber-800">
-          Coming soon: the SIEM does not report to the dashboard yet, so alerts and rulesets shown here
-          are demo data.
+          The SIEM&apos;s reporter then sends its detection lanes, their versions, component health and
+          alert counts here every five minutes. No alert content leaves your cluster. Until the first
+          report arrives, the numbers shown are demo data.
         </p>
       </div>
       {onDone && (

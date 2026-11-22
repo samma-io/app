@@ -83,6 +83,12 @@ export const apiTokenAuth = counter({
   labelNames: ["result"],
 });
 
+export const siemReports = counter({
+  name: "samma_app_siem_reports_total",
+  help: "SIEM reports posted to /api/v1/siem/report by result (ok/unauthorized/invalid/throttled).",
+  labelNames: ["result"],
+});
+
 export const reachabilityChecks = counter({
   name: "samma_app_reachability_checks_total",
   help: "Outside-in reachability checks of new targets by result (UP/DOWN/UNKNOWN).",

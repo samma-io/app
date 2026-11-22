@@ -1,14 +1,23 @@
-// SIEM section of the dashboard: SIEMs an org owns, their (demo) alert counts
+// SIEM section of the dashboard: SIEMs an org owns, their alert counts, lanes
 // and the ruleset each one runs.
 //
-// Nothing here talks to a SIEM yet. Ankra deploys are mocked (status derived
-// from createdAt) and alert counts are demo data (src/data/mock-siem.ts) until
-// SIEMs report in with their key.
+// A SIEM that runs the reporter posts to /api/v1/siem/report with its key; the
+// latest report is stored on the SiemInstance and shown as is. A SIEM that has
+// never reported shows demo data (src/data/mock-siem.ts). Ankra deploys are
+// still mocked (status derived from createdAt).
 
 import type { SiemHosting, SiemInstance } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { LATEST_RULESET } from "@/lib/siem-rules";
 import {
+  DAILY_DAYS,
+  parseSiemReport,
+  type SiemReport,
+  type SiemReportComponent,
+  type SiemReportLane,
+} from "@/lib/siem-report";
+import {
+  ALERT_LEVELS,
   demoRulesetVersion,
   demoSiemStats,
   sumCounts,
@@ -71,20 +80,62 @@ export interface SiemView {
   apiKeyLast4: string;
   createdAt: Date;
   status: SiemStatus;
-  rulesetVersion: string | null; // null while deploying
+  rulesetVersion: string | null; // null while deploying, or when the SIEM reports no ruleset
   rulesetOutdated: boolean;
   stats: DemoSiemStats | null; // null while deploying
-  demo: boolean;
+  demo: boolean; // stats and ruleset are demo data: the SIEM has never reported
+  // From the SIEM's latest report; empty until it reports.
+  lanes: SiemReportLane[];
+  components: SiemReportComponent[];
+  reportedAt: Date | null;
+  reporterVersion: string | null;
+  intervalSeconds: number | null;
+}
+
+/** Alert stats of a real report, in the shape the demo data uses. */
+function reportStats(report: SiemReport, now: Date): DemoSiemStats {
+  const measured = report.lanes.flatMap((l) => (l.alerts ? [l.alerts] : []));
+  // Always the last 14 days ending today, so several SIEMs line up day by day.
+  const byDay = new Map(report.daily.map((d) => [d.day, d]));
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const daily: DailyAlerts[] = [];
+  for (let i = DAILY_DAYS - 1; i >= 0; i--) {
+    const day = new Date(today - i * 86_400_000).toISOString().slice(0, 10);
+    const row = byDay.get(day);
+    daily.push({ day, ...sumCounts(row ? [row] : []) });
+  }
+  return {
+    last24h: sumCounts(measured.map((a) => a.last24h)),
+    last7d: sumCounts(measured.map((a) => a.last7d)),
+    daily,
+  };
+}
+
+/** Events per minute a lane evaluated over the last report interval, or null. */
+export function laneEventsPerMinute(lane: SiemReportLane, intervalSeconds: number | null): number | null {
+  if (lane.flow.eventsSinceLast === null || !intervalSeconds) return null;
+  return Math.round((lane.flow.eventsSinceLast / intervalSeconds) * 60);
+}
+
+export function totalAlerts(c: AlertCounts): number {
+  return ALERT_LEVELS.reduce((n, l) => n + c[l], 0);
 }
 
 function toView(s: SiemInstance, now: Date): SiemView {
   const status = siemStatus(s, now);
   const deploying = status === "deploying";
+  // The stored report was validated on the way in; validate again on the way
+  // out so an older shape can never break the page.
+  const parsed = s.report === null ? null : parseSiemReport(s.report);
+  const report = parsed?.ok ? parsed.report : null;
   // Ankra deploys are managed by Samma and get the latest ruleset; a connected
-  // SIEM runs whatever it reports (demo until it reports).
+  // SIEM runs whatever it reports (demo until it reports). A reporting SIEM
+  // shows its lane versions instead: rulesets have no release version yet.
   const rulesetVersion = deploying
     ? null
-    : s.rulesetVersion ?? (s.hosting === "CONNECTED" ? demoRulesetVersion(s.id) : LATEST_RULESET.version);
+    : report
+      ? s.rulesetVersion
+      : s.rulesetVersion ?? (s.hosting === "CONNECTED" ? demoRulesetVersion(s.id) : LATEST_RULESET.version);
   return {
     id: s.id,
     name: s.name,
@@ -96,8 +147,13 @@ function toView(s: SiemInstance, now: Date): SiemView {
     status,
     rulesetVersion,
     rulesetOutdated: rulesetVersion !== null && rulesetVersion !== LATEST_RULESET.version,
-    stats: deploying ? null : demoSiemStats(s.id, now),
-    demo: true,
+    stats: report ? reportStats(report, now) : deploying ? null : demoSiemStats(s.id, now),
+    demo: !report,
+    lanes: report?.lanes ?? [],
+    components: report?.components ?? [],
+    reportedAt: report ? s.lastSeenAt : null,
+    reporterVersion: report?.reporterVersion ?? null,
+    intervalSeconds: report?.intervalSeconds ?? null,
   };
 }
 
@@ -108,6 +164,7 @@ export interface SiemOverview {
   last7d: AlertCounts;
   daily: DailyAlerts[];
   example: boolean;
+  demo: boolean; // at least one SIEM in the totals has never reported
   subscription: { plan: string; active: boolean; renewsAt: Date | null } | null;
 }
 
@@ -118,7 +175,8 @@ export async function getSiemOverview(orgId: string): Promise<SiemOverview> {
     prisma.siemSubscription.findUnique({ where: { organisationId: orgId } }),
   ]);
   const instances = rows.map((r) => toView(r, now));
-  const withStats = instances.flatMap((i) => (i.stats ? [i.stats] : []));
+  const counted = instances.filter((i) => i.stats);
+  const withStats = counted.flatMap((i) => (i.stats ? [i.stats] : []));
 
   const example = instances.length === 0;
   const stats = example ? [demoSiemStats(orgId, now)] : withStats;
@@ -133,6 +191,7 @@ export async function getSiemOverview(orgId: string): Promise<SiemOverview> {
     last7d: sumCounts(stats.map((s) => s.last7d)),
     daily,
     example,
+    demo: counted.some((i) => i.demo),
     subscription: subscription
       ? { plan: subscription.plan, active: subscription.active, renewsAt: subscription.renewsAt }
       : null,

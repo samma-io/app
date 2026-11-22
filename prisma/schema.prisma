@@ -311,7 +311,8 @@ enum SiemHosting {
 // A SIEM that belongs to an org. The SIEM key is inbound (the SIEM will send
 // it to Samma), so only its SHA-256 hash is stored; the raw key is shown once.
 // It is not an ApiToken, so it cannot call the /api/v1 findings/targets routes.
-// Alert counts and rulesets are demo data until a SIEM reports in.
+// Alert counts and rulesets are demo data until a SIEM reports in: its reporter
+// posts to /api/v1/siem/report, which stores the latest report here.
 model SiemInstance {
   id             String      @id @default(cuid())
   organisationId String
@@ -322,7 +323,8 @@ model SiemInstance {
   apiKeyHash     String      @unique // SHA-256(rawKey), hex-encoded
   apiKeyLast4    String
   rulesetVersion String? // reported by the SIEM; null until it reports
-  lastSeenAt     DateTime?
+  report         Json? // latest validated report, see src/lib/siem-report.ts
+  lastSeenAt     DateTime? // time of the latest report
   createdAt      DateTime    @default(now())
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)

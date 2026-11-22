@@ -51,7 +51,13 @@ export default async function SiemPage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-gray-900">Alerts</h2>
-          <DemoBadge label={overview.example ? "Example data" : "Demo data"} />
+          {overview.example ? (
+            <DemoBadge label="Example data" />
+          ) : (
+            overview.demo && (
+              <DemoBadge label={instances.some((i) => !i.demo) ? "Includes demo data" : "Demo data"} />
+            )
+          )}
         </div>
         {overview.example && (
           <p className="text-sm text-gray-500">
@@ -94,7 +100,7 @@ export default async function SiemPage() {
                   <th className={th}>Name</th>
                   <th className={th}>Hosting</th>
                   <th className={th}>Status</th>
-                  <th className={th}>Ruleset</th>
+                  <th className={th}>Ruleset / lanes</th>
                   <th className={th}>Alerts (24h)</th>
                 </tr>
               </thead>
@@ -126,7 +132,13 @@ export default async function SiemPage() {
                         <SiemStatusBadge status={s.status} />
                       </td>
                       <td className={td}>
-                        <RulesetBadge version={s.rulesetVersion} />
+                        {s.lanes.length > 0 ? (
+                          <span className="font-mono text-xs text-gray-700">
+                            {s.lanes.map((l) => `${l.name} ${l.engine.version ?? "?"}`).join(" · ")}
+                          </span>
+                        ) : (
+                          <RulesetBadge version={s.rulesetVersion} />
+                        )}
                       </td>
                       <td className={`${td} text-gray-900`}>
                         {alerts === null ? (
@@ -134,6 +146,7 @@ export default async function SiemPage() {
                         ) : (
                           <>
                             {alerts}
+                            {s.demo && <span className="ml-2 text-xs text-gray-400">demo</span>}
                             {s.stats && s.stats.last24h.critical > 0 && (
                               <span className="ml-2 text-xs font-semibold text-severity-critical">
                                 {s.stats.last24h.critical} critical
