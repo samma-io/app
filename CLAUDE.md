@@ -127,6 +127,18 @@ An `/api/v1` call carrying `X-Samma-Cluster: <name>` (and optionally `X-Samma-Ve
 - `scannerStatus: ScannerStatus` — `READY_TO_DEPLOY` | `DEPLOYED`
 - `reachabilityStatus: ReachabilityStatus` — `UP` | `DOWN` | `UNKNOWN`. Set when a target is added (dashboard `addTarget`, API POST/PUT): `checkReachability()` in `src/lib/reachability.ts` tries a TCP handshake to the target's port, or 443 and 80, on the addresses it resolved itself (3 s timeout, nothing sent or read). Any connect is `UP`, none is `DOWN`. A LOCAL target (private or unresolvable, `isLocalTarget`) is stored as `DOWN` without a connection and gets no scanners; the dashboard shows it as "Not scanned · Unreachable" (`src/lib/target-labels.ts`). The samma operator registers such Ingress hosts on purpose, so a cluster's inventory is complete. The schema default `UP` only applies to older rows; nothing re-checks yet.
 
+## Metrics and health
+
+Prometheus metrics with `prom-client`, code in `src/lib/metrics/`:
+
+- `GET /api/metrics` — scraped on the pod IP by the PodMonitor in `chart/templates/podmonitor.yaml`. It answers 404 unless the request is addressed to an IP or `localhost`, so it is not reachable on the public hostnames.
+- `GET /api/health` (liveness, no database) and `GET /api/ready` (readiness, `SELECT 1` on the app database). `src/middleware.ts` answers these three paths without Clerk.
+- `registry.ts` — one registry on `globalThis`; create metrics only through its `counter()` / `gauge()` / `histogram()` helpers.
+- `instrument.ts` — `withMetrics(routeTemplate, handler)` for route handlers, `timed(dependency, op, fn)` for outbound calls, and the event counters. A new `/api` route should be exported through `withMetrics`.
+- `business.ts` — `samma_app_*` gauges from the app database and `scan_results`, refreshed at most once a minute. `samma_app_business_metrics_up{db}` is 0 when a database cannot be read.
+
+**Labels are fixed, small sets. Never put an organisation, user, target, token or finding in a label**: metrics leave the app's access control. Queries on `scan_results` must be time-bounded.
+
 ### Component Organization
 
 - `src/components/ui/` — Reusable primitives (Button, Card, Badge, StatCard) built with CVA + `cn()` utility

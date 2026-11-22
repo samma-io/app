@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateApiToken, parseLimit } from "@/lib/api-auth";
 import { getScannerDb } from "@/lib/scanner-db";
 import { latestFindings, parseSeverities } from "@/lib/scan-results";
+import { withMetrics } from "@/lib/metrics/instrument";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
  * GET /api/v1/findings?severity=CRITICAL,HIGH&since=<RFC3339>&limit=
  * Latest findings across all of the organisation's targets, most severe first.
  */
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const auth = await authenticateApiToken(req);
   if (!auth.ok) return auth.response;
 
@@ -50,3 +51,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Scan results unavailable" }, { status: 503 });
   }
 }
+
+export const GET = withMetrics("/api/v1/findings", handleGet);

@@ -1,5 +1,6 @@
 import { connect, isIP } from "net";
 import { isPrivateIp, resolveHostIps } from "@/lib/network";
+import { reachabilityChecks } from "@/lib/metrics/instrument";
 
 /**
  * Can samma.io reach a target from the internet?
@@ -42,6 +43,17 @@ export async function checkReachability(
   type: "ip" | "dns",
   port?: number | null,
   timeoutMs: number = CONNECT_TIMEOUT_MS
+): Promise<Reachability> {
+  const result = await probe(value, type, port, timeoutMs);
+  reachabilityChecks.inc({ result });
+  return result;
+}
+
+async function probe(
+  value: string,
+  type: "ip" | "dns",
+  port: number | null | undefined,
+  timeoutMs: number
 ): Promise<Reachability> {
   const ips = type === "ip" ? (isIP(value) ? [value] : []) : await resolveHostIps(value);
   if (ips.length === 0 || ips.some(isPrivateIp)) return "UNKNOWN";

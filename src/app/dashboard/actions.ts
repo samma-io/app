@@ -11,6 +11,7 @@ import { getExternalScanner } from "@/lib/external-scanners";
 import { startExternalScans } from "@/lib/external-scans";
 import { encryptSecret, SecretBoxNotConfigured } from "@/lib/secret-box";
 import { getSiemProvider } from "@/lib/siem";
+import { targetsCreated } from "@/lib/metrics/instrument";
 import { Prisma, type ProfileType, type SiemHosting } from "@prisma/client";
 
 // ─── Profiles ────────────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export async function addTarget(
       reachabilityStatus,
     },
   });
+  targetsCreated.inc({ source: "dashboard" });
 
   if (local) {
     const updated = target;

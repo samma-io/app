@@ -116,6 +116,14 @@ secrets:
 migration:
   enabled: true
 
+# ─── Metrics ──────────────────────────────────────────────────────────────────
+# Prometheus scrapes GET /api/metrics on the pod through a PodMonitor
+# (kube-prometheus-stack). The route answers 404 on the public hostnames.
+metrics:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
 autoscaling:
   enabled: false
   minReplicas: 1

@@ -76,15 +76,16 @@ spec:
                   name: {{ .Values.cloudnativepg.clusterName }}-app
                   key: uri
           {{- end }}
+          # /api/health touches no database; /api/ready checks the app database.
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10

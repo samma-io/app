@@ -1,6 +1,7 @@
 import type { ExternalScannerConnection } from "@prisma/client";
 import { decryptSecret } from "@/lib/secret-box";
 import { getExternalScanner } from "@/lib/external-scanners";
+import { timed } from "@/lib/metrics/instrument";
 
 // HTTP client for an external scanner (API: samma-io/external-scanner).
 // Server-only: it decrypts the connection's API key. Never log the key or the
@@ -27,15 +28,22 @@ type Conn = Pick<ExternalScannerConnection, "scannerId" | "apiKeyEncrypted">;
 function request(conn: Conn, path: string, init: RequestInit = {}) {
   const base = scannerApiUrl(conn.scannerId);
   if (!base) throw new Error(`No API URL configured for scanner "${conn.scannerId}"`);
-  return fetch(`${base}${path}`, {
-    ...init,
-    cache: "no-store",
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    headers: {
-      ...init.headers,
-      Authorization: `Bearer ${decryptSecret(conn.apiKeyEncrypted)}`,
-    },
-  });
+  return timed(
+    "external_scanner",
+    init.method === "POST" ? "start_scan" : "get_result",
+    () =>
+      fetch(`${base}${path}`, {
+        ...init,
+        cache: "no-store",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: {
+          ...init.headers,
+          Authorization: `Bearer ${decryptSecret(conn.apiKeyEncrypted)}`,
+        },
+      }),
+    // 404 is an answer ("unknown scan"), not a failing scanner.
+    (r) => r.status < 400 || r.status === 404
+  );
 }
 
 /** Starts a scan; returns the scanner's uuid for it. Throws on any failure. */
