@@ -22,6 +22,7 @@ export const NAV_LINKS = [
   { label: "Scanners", href: "/scanners" },
   { label: "SIEM", href: "/siem" },
   { label: "Integration", href: "/integration" },
+  { label: "Partners", href: "/partners" },
   { label: "About", href: "/about" },
 ] as const;
 
