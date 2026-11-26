@@ -314,20 +314,25 @@ enum SiemHosting {
 // Alert counts and rulesets are demo data until a SIEM reports in: its reporter
 // posts to /api/v1/siem/report, which stores the latest report here.
 model SiemInstance {
-  id             String      @id @default(cuid())
-  organisationId String
-  name           String
-  hosting        SiemHosting
-  provider       String? // ANKRA_OWN: hosting provider id, see src/lib/siem.ts
-  region         String?
-  apiKeyHash     String      @unique // SHA-256(rawKey), hex-encoded
-  apiKeyLast4    String
-  rulesetVersion String? // reported by the SIEM; null until it reports
-  report         Json? // latest validated report, see src/lib/siem-report.ts
-  lastSeenAt     DateTime? // time of the latest report
-  createdAt      DateTime    @default(now())
+  id               String      @id @default(cuid())
+  organisationId   String
+  name             String
+  hosting          SiemHosting
+  provider         String? // ANKRA_OWN: hosting provider id, see src/lib/siem.ts
+  region           String?
+  apiKeyHash       String      @unique // SHA-256(rawKey), hex-encoded
+  apiKeyLast4      String
+  rulesetVersion   String? // reported by the SIEM; null until it reports
+  report           Json? // latest validated report, see src/lib/siem-report.ts
+  lastSeenAt       DateTime? // time of the latest report
+  // Opt-in: the SIEM may send attacker IPs to /api/v1/siem/indicators. Off by
+  // default, set by an org OWNER on the SIEM page.
+  shareIndicators  Boolean     @default(false)
+  lastIndicatorsAt DateTime? // time of the latest indicator post (rate limit)
+  createdAt        DateTime    @default(now())
 
-  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  indicators   SiemIndicator[]
 
   @@unique([organisationId, name])
   @@index([organisationId])
@@ -344,4 +349,68 @@ model SiemSubscription {
   renewsAt       DateTime?
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Samma rule exchange (docs/siem-exchange.md) ──────────────────────────────
+
+// A signed ruleset bundle for one detection-engine lane, uploaded by the
+// detection-engine CI to POST /api/v1/siem/releases. The signature is made with
+// the offline rules key; the app only holds the public key and checks it before
+// storing. SIEMs download it through the feed and verify it again.
+model SiemRuleRelease {
+  id        String   @id @default(cuid())
+  lane      String // detection-engine lane, e.g. "traefik"
+  version   String // e.g. "2026.11.26-1"
+  sha256    String // hex, of `bundle`
+  signature String // base64 Ed25519 signature over `bundle`
+  ruleCount Int
+  summary   String   @default("")
+  bundle    Bytes // tar.gz of rules/<lane>/, at most 5 MB
+  createdAt DateTime @default(now())
+
+  @@unique([lane, version])
+  @@index([lane, createdAt])
+}
+
+// One attacker IP seen by one SIEM for one rule. Counts accumulate across
+// posts. Rows not seen for 7 days are pruned. Only the source IP and the rule
+// are kept: nothing about the host or request that was attacked.
+model SiemIndicator {
+  id             String   @id @default(cuid())
+  siemInstanceId String
+  organisationId String // denormalised: the blocklist counts organisations
+  ip             String
+  ruleId         String
+  category       String
+  count          Int
+  firstSeen      DateTime
+  lastSeen       DateTime
+  updatedAt      DateTime @updatedAt
+
+  siemInstance SiemInstance @relation(fields: [siemInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([siemInstanceId, ip, ruleId])
+  @@index([lastSeen])
+  @@index([ip])
+}
+
+// Samma-made exceptions: an IP here never goes on the community blocklist and
+// is published as an "allow" entry, so SIEMs lift an earlier community block.
+// Set by hand (SQL / Prisma Studio), like SiemSubscription.
+model SiemCommunityAllow {
+  id        String   @id @default(cuid())
+  ip        String   @unique
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// A signed snapshot of the community blocklist (JSON, signed with the app's
+// blocklist key). A new snapshot is made only when the entries change.
+model SiemBlocklistSnapshot {
+  version   Int      @id @default(autoincrement())
+  body      String // the exact JSON that was signed
+  digest    String // hex SHA-256 of the entry set (without timestamps), for change detection
+  sha256    String // hex SHA-256 of `body`
+  signature String // base64 Ed25519 signature over `body`
+  createdAt DateTime @default(now())
 }

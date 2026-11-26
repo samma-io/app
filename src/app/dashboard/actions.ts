@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getActiveOrg } from "@/lib/org";
+import { getActiveOrg, getActiveOrgRole } from "@/lib/org";
 import { prisma } from "@/lib/prisma";
 import { generateToken, hashToken } from "@/lib/token";
 import { registerTargetWithOperator, removeTargetFromOperator } from "@/lib/operator";
@@ -463,6 +463,29 @@ export async function rotateSiemKey(siemId: string): Promise<{ key: string }> {
 
   revalidatePath(`/dashboard/siem/${siem.id}`);
   return { key: key.raw };
+}
+
+/**
+ * Turn sharing of attacker IPs on or off for one SIEM (rule exchange,
+ * POST /api/v1/siem/indicators). OWNER only: it sends data out of the org.
+ * Turning it off also deletes what this SIEM has shared.
+ */
+export async function setSiemSharing(siemId: string, on: boolean): Promise<{ error?: string }> {
+  const org = await getActiveOrg();
+  if (!org) throw new Error("No active organization");
+  if ((await getActiveOrgRole()) !== "OWNER") return { error: "Only an owner can change sharing." };
+
+  const siem = await prisma.siemInstance.findFirst({
+    where: { id: siemId, organisationId: org.id },
+  });
+  if (!siem) throw new Error("SIEM not found");
+
+  await prisma.$transaction([
+    prisma.siemInstance.update({ where: { id: siem.id }, data: { shareIndicators: on } }),
+    ...(on ? [] : [prisma.siemIndicator.deleteMany({ where: { siemInstanceId: siem.id } })]),
+  ]);
+  revalidatePath(`/dashboard/siem/${siem.id}`);
+  return {};
 }
 
 export async function removeSiemInstance(siemId: string) {

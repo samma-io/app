@@ -88,6 +88,7 @@ export interface SiemView {
   lanes: SiemReportLane[];
   components: SiemReportComponent[];
   reportedAt: Date | null;
+  shareIndicators: boolean; // opted in to sending attacker IPs (rule exchange)
   reporterVersion: string | null;
   intervalSeconds: number | null;
 }
@@ -152,6 +153,7 @@ function toView(s: SiemInstance, now: Date): SiemView {
     lanes: report?.lanes ?? [],
     components: report?.components ?? [],
     reportedAt: report ? s.lastSeenAt : null,
+    shareIndicators: s.shareIndicators,
     reporterVersion: report?.reporterVersion ?? null,
     intervalSeconds: report?.intervalSeconds ?? null,
   };

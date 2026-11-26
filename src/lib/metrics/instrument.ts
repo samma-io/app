@@ -89,6 +89,12 @@ export const siemReports = counter({
   labelNames: ["result"],
 });
 
+export const siemExchange = counter({
+  name: "samma_app_siem_exchange_total",
+  help: "Rule exchange requests by endpoint (releases/feed/bundle/blocklist/indicators) and result.",
+  labelNames: ["endpoint", "result"],
+});
+
 export const reachabilityChecks = counter({
   name: "samma_app_reachability_checks_total",
   help: "Outside-in reachability checks of new targets by result (UP/DOWN/UNKNOWN).",
