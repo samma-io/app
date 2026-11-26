@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SiemAlertsChart } from "@/components/dashboard/siem-alerts-chart";
 import { RotateSiemKeyButton } from "@/components/dashboard/rotate-siem-key-button";
 import { RemoveSiemButton } from "@/components/dashboard/remove-siem-button";
+import { SiemSharingToggle } from "@/components/dashboard/siem-sharing-toggle";
 import {
   AlertTiles,
   DemoBadge,
@@ -11,7 +12,8 @@ import {
   RulesetBadge,
   SiemStatusBadge,
 } from "@/components/dashboard/siem-ui";
-import { getActiveOrg } from "@/lib/org";
+import { getActiveOrg, getActiveOrgRole } from "@/lib/org";
+import { countSharedIndicators } from "@/lib/siem-exchange";
 import {
   getSiemInstance,
   getSiemProvider,
@@ -45,6 +47,10 @@ export default async function SiemDetailPage({ params }: { params: Promise<{ id:
   const siem = await getSiemInstance(org.id, id);
   if (!siem) notFound();
 
+  const [role, shared] = await Promise.all([
+    getActiveOrgRole(),
+    countSharedIndicators(siem.id),
+  ]);
   const provider = getSiemProvider(siem.provider);
   const ruleset = getRuleset(siem.rulesetVersion);
   const missing = siem.rulesetVersion ? rulesMissingFrom(siem.rulesetVersion) : [];
@@ -100,6 +106,32 @@ export default async function SiemDetailPage({ params }: { params: Promise<{ id:
         <CardContent className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100">
           <RotateSiemKeyButton siemId={siem.id} />
           <RemoveSiemButton siemId={siem.id} siemName={siem.name} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-lg font-semibold text-gray-900">Share attackers with Samma</h2>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${siem.shareIndicators ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}
+            >
+              {siem.shareIndicators ? "On" : "Off"}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-gray-600">
+          <p>
+            When on, this SIEM sends the source IP and rule of each attack it detects. Nothing about the host or
+            request that was attacked is sent. An address reported by several organisations goes on the community
+            blocklist that every subscriber can use. Reports are kept for 7 days.
+          </p>
+          {siem.shareIndicators && (
+            <p className="text-gray-900">
+              {shared} {shared === 1 ? "address" : "addresses"} shared in the last 7 days.
+            </p>
+          )}
+          <SiemSharingToggle siemId={siem.id} on={siem.shareIndicators} canChange={role === "OWNER"} />
         </CardContent>
       </Card>
 
