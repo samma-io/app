@@ -32,7 +32,7 @@ const dataFlow = [
     icon: Plug,
     title: "Connect",
     description:
-      "Pull audit logs from your cloud and SaaS accounts, ship endpoint logs with the Wazuh 5 agent or osquery, and send anything else to a simple webhook.",
+      "Pull audit logs from your cloud and SaaS accounts, ship endpoint logs with the Wazuh 5 agent or osquery, label a Kubernetes workload to send its logs, and send anything else to a simple webhook.",
   },
   {
     icon: Filter,
@@ -44,7 +44,7 @@ const dataFlow = [
     icon: ShieldCheck,
     title: "Detect",
     description:
-      "Sigma rules run per source, such as a GitHub lane and an AWS lane. 65 rules, each with a test.",
+      "Sigma rules run per source, such as a GitHub lane and an AWS lane. Over 140 rules, each with a test.",
   },
   {
     icon: Search,
@@ -59,7 +59,25 @@ const dataFlow = [
   },
 ];
 
-const sourceGroups = [
+type SourceStatus = "live" | "next" | "coming";
+
+const sourceStatusLabel: Record<SourceStatus, string> = {
+  live: "Live",
+  next: "Next",
+  coming: "Coming",
+};
+
+const sourceStatusClass: Record<SourceStatus, string> = {
+  live: "bg-green-100 text-green-800",
+  next: "bg-samma-gold/20 text-samma-navy",
+  coming: "bg-gray-100 text-gray-600",
+};
+
+const sourceGroups: {
+  label: string;
+  items: (string | { name: string; status: SourceStatus })[];
+  note?: { inside: string; outside: string };
+}[] = [
   {
     label: "Cloud & SaaS",
     items: [
@@ -78,6 +96,24 @@ const sourceGroups = [
   {
     label: "Endpoints",
     items: ["Wazuh 5 agent", "osquery"],
+  },
+  {
+    label: "Kubernetes workloads",
+    items: [
+      { name: "Traefik access logs", status: "live" },
+      { name: "Kubernetes API audit", status: "live" },
+      { name: "Keycloak", status: "next" },
+      { name: "Falco", status: "coming" },
+      { name: "Trivy", status: "coming" },
+      { name: "OPA Gatekeeper", status: "coming" },
+      { name: "open-appsec", status: "coming" },
+    ],
+    note: {
+      inside:
+        "Inside the cluster the SIEM runs in, each lane works on its own: label a workload and its logs reach detection. Nothing is exposed.",
+      outside:
+        "From another cluster or from outside, the logs need a connection to the SIEM first.",
+    },
   },
   {
     label: "Anything else",
@@ -148,6 +184,7 @@ const deployments = [
     points: [
       "Runs in any Kubernetes cluster, or deploy it with Ankra",
       "Endpoints via the Wazuh 5 agent, osquery or a webhook",
+      "Label a workload to detect on its logs: Traefik and the Kubernetes API audit log today, Keycloak next",
       "The same Sigma rules as the AWS SIEM, each with tests",
       "Alerts to Slack and GitHub issues",
       "Search in Quickwit, with Grafana dashboards",
@@ -281,6 +318,12 @@ const comparison = [
   {
     label: "Endpoints",
     kubernetes: "Wazuh 5 agent, osquery, or any client over a webhook",
+    aws: "—",
+  },
+  {
+    label: "Kubernetes workloads",
+    kubernetes:
+      "Traefik and the API audit log, inside the cluster. Next: Keycloak, then Falco, Trivy, OPA Gatekeeper and open-appsec",
     aws: "—",
   },
   {
@@ -419,9 +462,9 @@ export default function SiemFeaturePage() {
             Connect Everything
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto mb-10">
-            Cloud accounts, SaaS audit logs and endpoints all flow into the
-            same pipeline. If a client can send HTTP, it can send to the
-            webhook.
+            Cloud accounts, SaaS audit logs, endpoints and the workloads in
+            your cluster all flow into the same pipeline. If a client can
+            send HTTP, it can send to the webhook.
           </p>
           <div className="space-y-8">
             {sourceGroups.map((group) => (
@@ -430,15 +473,47 @@ export default function SiemFeaturePage() {
                   {group.label}
                 </h3>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {group.items.map((src) => (
-                    <span
-                      key={src}
-                      className="rounded-full border border-samma-navy/20 bg-white px-4 py-2 text-sm font-medium text-samma-navy"
-                    >
-                      {src}
-                    </span>
-                  ))}
+                  {group.items.map((item) => {
+                    const src = typeof item === "string" ? { name: item } : item;
+                    return (
+                      <span
+                        key={src.name}
+                        className="inline-flex items-center gap-2 rounded-full border border-samma-navy/20 bg-white px-4 py-2 text-sm font-medium text-samma-navy"
+                      >
+                        {src.name}
+                        {"status" in src && src.status && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${sourceStatusClass[src.status]}`}
+                          >
+                            {sourceStatusLabel[src.status]}
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })}
                 </div>
+                {group.note && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 max-w-3xl mx-auto text-left">
+                    <div className="rounded-lg border border-green-200 bg-white p-4">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <Boxes className="h-4 w-4 text-green-700" />
+                        Inside the cluster: works on its own
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {group.note.inside}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-samma-gold/40 bg-white p-4">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <Plug className="h-4 w-4 text-samma-navy" />
+                        Outside the cluster: needs a connection
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {group.note.outside}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
