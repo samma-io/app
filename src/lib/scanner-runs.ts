@@ -3,7 +3,6 @@ import { getScannerDb } from "@/lib/scanner-db";
 import { latestRuns } from "@/lib/scan-results";
 import { INTERNAL_SCANNERS } from "@/lib/constants";
 import { BILLING_CURRENCY } from "@/lib/external-scanners";
-import { DEMO_TARGETS, demoRuns, type DemoTarget } from "@/data/mock-scanner-runs";
 
 // Everything the scanner dashboard shows, scoped to one organisation.
 // Internal runs come from TimescaleDB (latest run per scanner and target);
@@ -21,7 +20,6 @@ export type RunRow = {
   findingCount: number;
   costCents: number;
   currency: string;
-  demo: boolean;
 };
 
 export type ScannerSummary = {
@@ -34,13 +32,12 @@ export type ScannerSummary = {
   pricePerScanCents: number;
   currency: string;
   spend30dCents: number;
-  demo: boolean;
 };
 
 export type ScannerDashboard = {
   scanners: ScannerSummary[];
   runs: RunRow[];
-  internalIsDemo: boolean;
+  internalUnavailable: boolean; // no scan results database, or the query failed
   totals30d: { runs: number; targets: number; activeScanners: number; spendCents: number };
 };
 
@@ -64,7 +61,7 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
   ]);
 
   const byId = new Map(targets.map((t) => [t.id, t]));
-  const { runs: internalRuns, demo: internalIsDemo } = await getInternalRuns(targets, byId);
+  const { runs: internalRuns, unavailable: internalUnavailable } = await getInternalRuns(targets, byId);
 
   const connectionsById = new Map(connections.map((c) => [c.id, c]));
   const externalRuns: RunRow[] = externalScanRuns.flatMap((r) => {
@@ -83,7 +80,6 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
       // Only a completed run is charged.
       costCents: r.status === "COMPLETED" ? c.pricePerScanCents : 0,
       currency: c.currency,
-      demo: false,
     }];
   });
 
@@ -102,7 +98,6 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
       pricePerScanCents: c.pricePerScanCents,
       currency: c.currency,
       spend30dCents: 0,
-      demo: false,
     });
   }
   const targetSets = new Map<string, Set<string>>();
@@ -119,7 +114,6 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
         pricePerScanCents: 0,
         currency: BILLING_CURRENCY,
         spend30dCents: 0,
-        demo: r.demo,
       };
       summaries.set(r.scanner, s);
     }
@@ -146,66 +140,43 @@ export async function getScannerDashboard(organisationId: string): Promise<Scann
     spendCents: recent.reduce((sum, r) => sum + r.costCents, 0),
   };
 
-  return { scanners, runs, internalIsDemo, totals30d };
+  return { scanners, runs, internalUnavailable, totals30d };
 }
 
-async function getInternalRuns(
-  targets: DemoTarget[],
-  byId: Map<string, DemoTarget>
-): Promise<{ runs: RunRow[]; demo: boolean }> {
-  const db = getScannerDb();
-  if (db && targets.length > 0) {
-    try {
-      const rows = await latestRuns(db, targets.map((t) => t.id));
-      return {
-        demo: false,
-        runs: rows.flatMap((r) => {
-          const t = byId.get(r.targetId);
-          const at = r.finishedAt ?? r.lastSeenAt;
-          if (!t || !at) return [];
-          return [{
-            time: new Date(at),
-            scanner: r.scanner,
-            scannerLabel: INTERNAL_SCANNERS[r.scanner] ?? r.scanner,
-            kind: "internal" as const,
-            targetId: t.id,
-            targetValue: t.value,
-            profileId: t.profileId,
-            outcome: r.outcome ?? "completed",
-            findingCount: r.findingCount,
-            costCents: 0,
-            currency: BILLING_CURRENCY,
-            demo: false,
-          }];
-        }),
-      };
-    } catch (err) {
-      console.error("[scanner-runs] scan_results query failed, using demo data:", err);
-    }
-  }
+type TargetRef = { id: string; value: string; profileId: string | null };
 
-  // No scanner DB in this environment: show the shape with demo runs.
-  const demoTargets = targets.length > 0 ? targets : DEMO_TARGETS;
-  const demoById = new Map(demoTargets.map((t) => [t.id, t]));
-  const runs: RunRow[] = [];
-  for (const [scanner, label] of Object.entries(INTERNAL_SCANNERS).filter(([k]) => k.startsWith("detect-"))) {
-    for (const r of demoRuns(scanner, demoTargets, { days: WINDOW_DAYS, everyDays: 1 })) {
-      const t = demoById.get(r.targetId)!;
-      runs.push({
-        time: r.time,
-        scanner,
-        scannerLabel: label,
-        kind: "internal",
-        targetId: t.id,
-        targetValue: t.value,
-        profileId: t.profileId,
-        outcome: r.outcome,
-        findingCount: r.findingCount,
-        costCents: 0,
-        currency: BILLING_CURRENCY,
-        demo: true,
-      });
-    }
+async function getInternalRuns(
+  targets: TargetRef[],
+  byId: Map<string, TargetRef>
+): Promise<{ runs: RunRow[]; unavailable: boolean }> {
+  if (targets.length === 0) return { runs: [], unavailable: false };
+  const db = getScannerDb();
+  if (!db) return { runs: [], unavailable: true };
+  try {
+    const rows = await latestRuns(db, targets.map((t) => t.id));
+    return {
+      unavailable: false,
+      runs: rows.flatMap((r) => {
+        const t = byId.get(r.targetId);
+        const at = r.finishedAt ?? r.lastSeenAt;
+        if (!t || !at) return [];
+        return [{
+          time: new Date(at),
+          scanner: r.scanner,
+          scannerLabel: INTERNAL_SCANNERS[r.scanner] ?? r.scanner,
+          kind: "internal" as const,
+          targetId: t.id,
+          targetValue: t.value,
+          profileId: t.profileId,
+          outcome: r.outcome ?? "completed",
+          findingCount: r.findingCount,
+          costCents: 0,
+          currency: BILLING_CURRENCY,
+        }];
+      }),
+    };
+  } catch (err) {
+    console.error("[scanner-runs] scan_results query failed:", err);
+    return { runs: [], unavailable: true };
   }
-  return { runs, demo: true };
 }

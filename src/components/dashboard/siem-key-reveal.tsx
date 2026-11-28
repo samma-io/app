@@ -30,7 +30,7 @@ export function SiemKeyReveal({ siemKey, onDone }: { siemKey: string; onDone?: (
         <p className="mt-2 text-xs text-amber-800">
           The SIEM&apos;s reporter then sends its detection lanes, their versions, component health and
           alert counts here every five minutes. No alert content leaves your cluster. Until the first
-          report arrives, the numbers shown are demo data.
+          report arrives, the SIEM shows no numbers.
         </p>
       </div>
       {onDone && (

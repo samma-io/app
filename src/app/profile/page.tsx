@@ -71,7 +71,7 @@ export default function ProfilePage() {
 
         {/* Dashboards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link href="/profile/scanners" className="block">
+          <Link href="/dashboard/scanners" className="block">
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="py-6">
                 <div className="flex items-center gap-4">
@@ -92,7 +92,7 @@ export default function ProfilePage() {
             </Card>
           </Link>
 
-          <Link href="/profile/siem" className="block">
+          <Link href="/dashboard/siem" className="block">
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="py-6">
                 <div className="flex items-center gap-4">

@@ -2,8 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn, severityColor } from "@/lib/utils";
-import { ALERT_LEVELS, type AlertCounts } from "@/data/mock-siem";
-import { LATEST_RULESET, type RuleLevel } from "@/lib/siem-rules";
+import { ALERT_LEVELS, type AlertCounts, type RuleLevel } from "@/lib/siem-alerts";
 import { STATUS_LABEL, type SiemStatus } from "@/lib/siem";
 
 const LEVEL_LABEL: Record<RuleLevel, string> = {
@@ -12,18 +11,6 @@ const LEVEL_LABEL: Record<RuleLevel, string> = {
   medium: "Medium",
   low: "Low",
 };
-
-export function DemoBadge({ label = "Demo data" }: { label?: string }) {
-  return <Badge className="bg-amber-100 text-amber-800">{label}</Badge>;
-}
-
-export function LevelBadge({ level }: { level: RuleLevel }) {
-  return (
-    <span className={cn("inline-flex rounded px-2 py-0.5 text-xs font-semibold", severityColor(level))}>
-      {LEVEL_LABEL[level]}
-    </span>
-  );
-}
 
 const STATUS_CLASS: Record<SiemStatus, string> = {
   deploying: "bg-blue-100 text-blue-800",
@@ -38,17 +25,7 @@ export function SiemStatusBadge({ status }: { status: SiemStatus }) {
 
 export function RulesetBadge({ version }: { version: string | null }) {
   if (!version) return <span className="text-gray-400">—</span>;
-  const latest = version === LATEST_RULESET.version;
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="font-mono text-gray-900">{version}</span>
-      {latest ? (
-        <Badge className="bg-green-100 text-green-800">Latest</Badge>
-      ) : (
-        <Badge className="bg-orange-100 text-orange-800">Update available</Badge>
-      )}
-    </span>
-  );
+  return <span className="font-mono text-gray-900">{version}</span>;
 }
 
 /** Critical/High/Medium/Low alert counts for one window, plus a smaller second window. */
