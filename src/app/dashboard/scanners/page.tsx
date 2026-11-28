@@ -35,10 +35,6 @@ function KindBadge({ kind }: { kind: "internal" | "external" }) {
   );
 }
 
-function DemoBadge() {
-  return <Badge className="bg-amber-100 text-amber-800">Demo data</Badge>;
-}
-
 export default async function ScannersPage() {
   const org = await getActiveOrg();
   if (!org) redirect("/dashboard");
@@ -55,7 +51,7 @@ export default async function ScannersPage() {
     getScannerDashboard(org.id),
   ]);
 
-  const { scanners, runs, internalIsDemo, totals30d } = dashboard;
+  const { scanners, runs, internalUnavailable, totals30d } = dashboard;
   const configured = isSecretBoxConfigured();
 
   return (
@@ -193,7 +189,6 @@ export default async function ScannersPage() {
                 <tr key={s.key} className="hover:bg-gray-50">
                   <td className={`${td} text-gray-900`}>
                     <span className="mr-2">{s.label}</span>
-                    {s.demo && <DemoBadge />}
                   </td>
                   <td className={td}>
                     <KindBadge kind={s.kind} />
@@ -221,8 +216,8 @@ export default async function ScannersPage() {
         <CardHeader>
           <h2 className="text-base font-semibold text-gray-900">Recent runs</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {internalIsDemo
-              ? "No scan results database here, so internal runs are demo data. "
+            {internalUnavailable
+              ? "Internal runs can't be loaded right now. "
               : "Internal runs show the latest run per scanner and target. "}
             External runs show every run; running ones are checked again each time this page opens.
           </p>

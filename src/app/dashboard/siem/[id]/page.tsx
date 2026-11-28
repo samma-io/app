@@ -5,13 +5,7 @@ import { SiemAlertsChart } from "@/components/dashboard/siem-alerts-chart";
 import { RotateSiemKeyButton } from "@/components/dashboard/rotate-siem-key-button";
 import { RemoveSiemButton } from "@/components/dashboard/remove-siem-button";
 import { SiemSharingToggle } from "@/components/dashboard/siem-sharing-toggle";
-import {
-  AlertTiles,
-  DemoBadge,
-  LevelBadge,
-  RulesetBadge,
-  SiemStatusBadge,
-} from "@/components/dashboard/siem-ui";
+import { AlertTiles, RulesetBadge, SiemStatusBadge } from "@/components/dashboard/siem-ui";
 import { getActiveOrg, getActiveOrgRole } from "@/lib/org";
 import { countSharedIndicators } from "@/lib/siem-exchange";
 import {
@@ -21,9 +15,8 @@ import {
   laneEventsPerMinute,
   totalAlerts,
 } from "@/lib/siem";
-import { ALERT_LEVELS } from "@/data/mock-siem";
-import { getRuleset, LATEST_RULESET, rulesIncludedIn, rulesMissingFrom } from "@/lib/siem-rules";
-import { formatDate, formatDay } from "@/lib/utils";
+import { ALERT_LEVELS } from "@/lib/siem-alerts";
+import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +45,6 @@ export default async function SiemDetailPage({ params }: { params: Promise<{ id:
     countSharedIndicators(siem.id),
   ]);
   const provider = getSiemProvider(siem.provider);
-  const ruleset = getRuleset(siem.rulesetVersion);
-  const missing = siem.rulesetVersion ? rulesMissingFrom(siem.rulesetVersion) : [];
-  const included = siem.rulesetVersion ? rulesIncludedIn(siem.rulesetVersion) : [];
 
   return (
     <div className="space-y-6">
@@ -141,14 +131,20 @@ export default async function SiemDetailPage({ params }: { params: Promise<{ id:
             Ankra is deploying this SIEM. Alerts and the ruleset show up here when it is running.
           </CardContent>
         </Card>
+      ) : !siem.stats ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-gray-500">
+            No report from this SIEM yet. Its alerts, detection lanes and components show up here after the
+            first report.
+          </CardContent>
+        </Card>
       ) : (
         siem.stats && (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-gray-900">Alerts</h2>
-              {siem.demo && <DemoBadge />}
             </div>
-            {siem.status === "down" && !siem.demo && (
+            {siem.status === "down" && (
               <p className="text-sm text-red-700">
                 This SIEM stopped reporting. The numbers below are from its last report.
               </p>
@@ -275,49 +271,6 @@ export default async function SiemDetailPage({ params }: { params: Promise<{ id:
         </Card>
       )}
 
-      {siem.rulesetVersion && (
-        <Card>
-          <CardHeader>
-            <h2 className="text-base font-semibold text-gray-900">Deployed ruleset</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              <span className="font-mono">{siem.rulesetVersion}</span>
-              {ruleset && (
-                <>
-                  {" "}
-                  · {ruleset.ruleCount} rules · released {formatDay(ruleset.releasedAt)}
-                </>
-              )}
-              {missing.length > 0 && (
-                <>
-                  {" "}
-                  · <span className="font-mono">{LATEST_RULESET.version}</span> adds {missing.length}{" "}
-                  rule{missing.length === 1 ? "" : "s"}
-                </>
-              )}
-            </p>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ul className="divide-y divide-gray-50">
-              {missing.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center gap-2 bg-orange-50/50 px-6 py-3 text-sm">
-                  <LevelBadge level={r.level} />
-                  <span className="text-gray-900">{r.title}</span>
-                  {r.cve && <span className="font-mono text-xs text-gray-500">{r.cve}</span>}
-                  <span className="ml-auto text-xs text-orange-700">Not deployed · in {r.addedIn}</span>
-                </li>
-              ))}
-              {included.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center gap-2 px-6 py-3 text-sm">
-                  <LevelBadge level={r.level} />
-                  <span className="text-gray-900">{r.title}</span>
-                  {r.cve && <span className="font-mono text-xs text-gray-500">{r.cve}</span>}
-                  <span className="ml-auto text-xs text-green-700">Deployed · {r.addedIn}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

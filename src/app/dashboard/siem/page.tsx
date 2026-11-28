@@ -5,16 +5,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { SiemAlertsChart } from "@/components/dashboard/siem-alerts-chart";
-import {
-  AlertTiles,
-  DemoBadge,
-  LevelBadge,
-  RulesetBadge,
-  SiemStatusBadge,
-} from "@/components/dashboard/siem-ui";
+import { AlertTiles, RulesetBadge, SiemStatusBadge } from "@/components/dashboard/siem-ui";
 import { getActiveOrg } from "@/lib/org";
 import { getSiemOverview, getSiemProvider, HOSTING_LABEL } from "@/lib/siem";
-import { getRuleset, LATEST_RULESET, RECENT_RULES } from "@/lib/siem-rules";
 import { GITHUB_ORG_URL } from "@/lib/constants";
 import { formatDate, formatDay } from "@/lib/utils";
 
@@ -29,7 +22,7 @@ export default async function SiemPage() {
   if (!org) redirect("/dashboard");
 
   const overview = await getSiemOverview(org.id);
-  const { instances, subscription } = overview;
+  const { instances, subscription, latestRulesets } = overview;
   const subscribed = subscription?.active ?? false;
 
   return (
@@ -51,18 +44,19 @@ export default async function SiemPage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-gray-900">Alerts</h2>
-          {overview.example ? (
-            <DemoBadge label="Example data" />
-          ) : (
-            overview.demo && (
-              <DemoBadge label={instances.some((i) => !i.demo) ? "Includes demo data" : "Demo data"} />
-            )
-          )}
         </div>
-        {overview.example && (
+        {overview.reporting === 0 ? (
           <p className="text-sm text-gray-500">
-            No SIEM yet. This is what the overview looks like once one reports in.
+            {instances.length === 0
+              ? "No SIEM yet. Alerts show up here once one reports in."
+              : "No SIEM has reported yet. Alerts show up here after the first report."}
           </p>
+        ) : (
+          overview.reporting < instances.length && (
+            <p className="text-sm text-gray-500">
+              From {overview.reporting} of {instances.length} SIEMs; the others have not reported yet.
+            </p>
+          )
         )}
         <AlertTiles primary={overview.last24h} secondary={overview.last7d} />
         <Card>
@@ -79,10 +73,6 @@ export default async function SiemPage() {
       <Card>
         <CardHeader>
           <h2 className="text-base font-semibold text-gray-900">Your SIEMs</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Latest ruleset: <span className="font-mono">{LATEST_RULESET.version}</span>, released{" "}
-            {formatDay(LATEST_RULESET.releasedAt)}.
-          </p>
         </CardHeader>
         <CardContent className="p-0">
           {instances.length === 0 ? (
@@ -146,7 +136,6 @@ export default async function SiemPage() {
                         ) : (
                           <>
                             {alerts}
-                            {s.demo && <span className="ml-2 text-xs text-gray-400">demo</span>}
                             {s.stats && s.stats.last24h.critical > 0 && (
                               <span className="ml-2 text-xs font-semibold text-severity-critical">
                                 {s.stats.last24h.critical} critical
@@ -170,31 +159,33 @@ export default async function SiemPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-samma-navy" />
-              <h2 className="text-base font-semibold text-gray-900">Latest rules</h2>
-              <DemoBadge />
+              <h2 className="text-base font-semibold text-gray-900">Latest rulesets</h2>
             </div>
             <p className="mt-1 text-sm text-gray-500">
-              New detection rules from Samma, including rules for recent CVEs.
+              The newest signed ruleset Samma has published for each detection lane.
             </p>
           </CardHeader>
           <CardContent className="p-0">
-            <ul className="divide-y divide-gray-50">
-              {RECENT_RULES.map((r) => (
-                <li key={r.id} className="px-6 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <LevelBadge level={r.level} />
-                    {r.cve && <Badge className="bg-gray-900 text-white font-mono">{r.cve}</Badge>}
-                    <span className="font-medium text-gray-900">{r.title}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">{r.description}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Lane <span className="font-mono">{r.lane}</span> · ruleset{" "}
-                    <span className="font-mono">{r.addedIn}</span>
-                    {getRuleset(r.addedIn) && <> · added {formatDay(getRuleset(r.addedIn)!.releasedAt)}</>}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            {latestRulesets.length === 0 ? (
+              <div className="px-6 py-10 text-center text-sm text-gray-400">
+                No rulesets published yet.
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {latestRulesets.map((r) => (
+                  <li key={r.lane} className="px-6 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-gray-900">{r.lane}</span>
+                      <span className="font-mono text-sm text-gray-700">{r.version}</span>
+                      <span className="text-xs text-gray-400">
+                        {r.ruleCount} rules · {formatDay(r.createdAt.toISOString())}
+                      </span>
+                    </div>
+                    {r.summary && <p className="mt-1 text-sm text-gray-500">{r.summary}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 

@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { DailyAlerts } from "@/data/mock-siem";
+import type { DailyAlerts } from "@/lib/siem-alerts";
 
 // Same order and colours as the severity tiles.
 const SERIES = [

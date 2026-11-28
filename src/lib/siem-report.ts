@@ -6,7 +6,7 @@
 // exactly this shape and nothing else the sender included.
 // Kept free of server-only imports so client components can use the types.
 
-import { ALERT_LEVELS, type AlertCounts, type DailyAlerts } from "@/data/mock-siem";
+import { ALERT_LEVELS, type AlertCounts, type DailyAlerts } from "@/lib/siem-alerts";
 
 export const SIEM_REPORT_SCHEMA = 1;
 export const MAX_REPORT_BYTES = 64 * 1024;
