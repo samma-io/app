@@ -23,6 +23,12 @@ import {
   Coins,
   Handshake,
   ExternalLink,
+  RefreshCw,
+  Activity,
+  Users,
+  KeyRound,
+  Ban,
+  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GITHUB_ORG_URL, GUIDE_LINKS, GUIDE_URL } from "@/lib/constants";
@@ -145,6 +151,81 @@ const sharing = [
     title: "Alerts Where You Work",
     description:
       "Your own detections and your partners' alerts land in Slack, and become tickets as GitHub issues.",
+  },
+];
+
+// Live rules, the live dashboard and shared defence. Each step carries its
+// real status: flip it to "live" when that part ships.
+const connected: {
+  icon: typeof Cloud;
+  title: string;
+  tagline: string;
+  steps: { text: string; status: SourceStatus }[];
+}[] = [
+  {
+    icon: RefreshCw,
+    title: "Live Rules",
+    tagline: "New detections reach your SIEM without a redeploy.",
+    steps: [
+      { text: "Samma writes each rule with a test, and releases them as a ruleset", status: "live" },
+      { text: "Every ruleset is signed and published on the Samma rule feed", status: "next" },
+      { text: "Your SIEM checks the feed, verifies the signature and loads the new rules without a restart", status: "next" },
+    ],
+  },
+  {
+    icon: Activity,
+    title: "Live Dashboard",
+    tagline: "Every SIEM you run, in one place on samma.io.",
+    steps: [
+      { text: "Your SIEM sends a short report to samma.io every five minutes", status: "live" },
+      { text: "Only counts and health leave: lanes, rules, alerts per level, workloads", status: "live" },
+      { text: "See each lane, the rules it runs and the alerts it fires, next to your scans", status: "live" },
+    ],
+  },
+  {
+    icon: Users,
+    title: "Shared Defence",
+    tagline: "An attack on one of us protects all of us.",
+    steps: [
+      { text: "A Traefik rule catches an attacker probing your site", status: "live" },
+      { text: "If you opt in, your SIEM shares the attacker's IP and the rule it broke", status: "next" },
+      { text: "When three or more organisations report the same IP, it joins the signed community blocklist", status: "live" },
+      { text: "Every subscriber's SIEM pulls the list and blocks the IP at the edge", status: "next" },
+    ],
+  },
+];
+
+// Badge colours for the dark "Live" section.
+const darkStatusClass: Record<SourceStatus, string> = {
+  live: "bg-green-100 text-green-800",
+  next: "bg-samma-gold text-samma-navy",
+  coming: "bg-white/20 text-white",
+};
+
+const guardrails = [
+  {
+    icon: KeyRound,
+    title: "Signed",
+    description:
+      "Rulesets and the blocklist are signed with separate keys. Your SIEM drops anything that doesn't verify.",
+  },
+  {
+    icon: EyeOff,
+    title: "Opt-in, IPs only",
+    description:
+      "Sharing is off until an owner turns it on. Only the attacker's IP and the rule id leave, never your logs.",
+  },
+  {
+    icon: Ban,
+    title: "Never one report",
+    description:
+      "One organisation can't get an IP blocked. It takes reports from at least three, and false positives can be allowed back.",
+  },
+  {
+    icon: Timer,
+    title: "Blocks expire",
+    description:
+      "An IP drops off the list after seven days without new reports, and a list that isn't refreshed expires within a day.",
   },
 ];
 
@@ -546,6 +627,69 @@ export default function SiemFeaturePage() {
                 <p className="text-gray-600 text-sm leading-relaxed">
                   {item.description}
                 </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Live rules, live dashboard, shared defence */}
+      <section
+        id="live"
+        className="py-20 bg-gradient-to-br from-samma-navy to-samma-navy-dark text-white scroll-mt-16"
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Live Rules. <span className="text-samma-gold">Shared Defence.</span>
+            </h2>
+            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+              Your SIEM stays connected to samma.io. New rules come down,
+              a health report goes up, and attackers caught by one
+              organisation get blocked by everyone who subscribes.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {connected.map((c) => (
+              <div
+                key={c.title}
+                className="rounded-lg border border-white/15 bg-white/5 p-6 flex flex-col"
+              >
+                <div className="rounded-lg bg-samma-gold/20 p-3 w-fit mb-4">
+                  <c.icon className="h-6 w-6 text-samma-gold" />
+                </div>
+                <h3 className="text-xl font-semibold mb-1">{c.title}</h3>
+                <p className="text-sm text-gray-300 mb-6">{c.tagline}</p>
+                <ol className="space-y-4">
+                  {c.steps.map((step, i) => (
+                    <li key={step.text} className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-samma-gold/60 text-xs font-semibold text-samma-gold">
+                        {i + 1}
+                      </span>
+                      <div className="text-sm leading-relaxed text-gray-200">
+                        {step.text}{" "}
+                        <span
+                          className={`ml-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold align-middle ${darkStatusClass[step.status]}`}
+                        >
+                          {sourceStatusLabel[step.status]}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {guardrails.map((g) => (
+              <div key={g.title} className="flex gap-3">
+                <g.icon className="h-5 w-5 text-samma-gold shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-sm mb-1">{g.title}</p>
+                  <p className="text-sm text-gray-300 leading-relaxed">
+                    {g.description}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
